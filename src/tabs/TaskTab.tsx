@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { App, TFile, Notice } from "obsidian";
-import { MobileHubSettings, TaskItem, TaskPriority } from "../types";
+import {
+  HubRuntimeState,
+  MobileHubSettings,
+  TaskItem,
+  TaskPriority,
+} from "../types";
 import {
   cleanMarkdownPreview,
   ensureFolder,
@@ -19,7 +24,16 @@ import { PromptModal } from "../components/PromptModal";
 interface TaskTabProps {
   app: App;
   settings: MobileHubSettings;
+  hubState: HubRuntimeState;
   refreshTick: number;
+}
+
+interface TaskMeta {
+  file: TFile;
+  due: string; // YYYY-MM-DD or ""
+  done: boolean;
+  priority: TaskPriority;
+  folderLabel: string;
 }
 
 const PRIORITY_ORDER: TaskPriority[] = ["low", "medium", "high"];
@@ -40,86 +54,153 @@ function formatFriendlyDate(dateKey: string): string {
   return dateKey;
 }
 
-export function TaskTab({ app, settings, refreshTick }: TaskTabProps) {
-  const [selectedDate, setSelectedDate] = useState<string>(() =>
-    formatDateKey(new Date())
+function addDays(base: Date, days: number): string {
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days);
+  return formatDateKey(d);
+}
+
+function sortTasks(list: TaskItem[]): TaskItem[] {
+  return [...list].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    const pDiff =
+      PRIORITY_ORDER.indexOf(b.priority) - PRIORITY_ORDER.indexOf(a.priority);
+    if (pDiff !== 0) return pDiff;
+    return b.mtime - a.mtime;
+  });
+}
+
+export function TaskTab({ app, settings, hubState, refreshTick }: TaskTabProps) {
+  const [selectedDate, setSelectedDateState] = useState<string>(
+    () => hubState.taskSelectedDate
   );
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [overdueOpen, setOverdueOpenState] = useState<boolean>(
+    () => hubState.taskOverdueOpen
+  );
+  const [noDateOpen, setNoDateOpen] = useState(false);
+
+  const [dayTasks, setDayTasks] = useState<TaskItem[]>([]);
+  const [overdueTasks, setOverdueTasks] = useState<TaskItem[]>([]);
+  const [noDateTasks, setNoDateTasks] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [activeTask, setActiveTask] = useState<TaskItem | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TaskItem | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      const files = getMarkdownFilesInFolder(app, settings.taskFolder);
-      const loaded: TaskItem[] = await Promise.all(
-        files.map(async (f) => {
-          const raw = await app.vault.cachedRead(f);
-          const { due, done, priority } = parseTaskFrontmatter(app, f);
-          const fallbackDue = due || formatDateKey(new Date(f.stat.ctime));
-          const preview = cleanMarkdownPreview(raw, 6);
-          const parentName = f.parent?.name || settings.taskFolder;
-          return {
-            path: f.path,
-            basename: f.basename,
-            due: fallbackDue,
-            done,
-            priority,
-            preview,
-            folderLabel: parentName === settings.taskFolder ? "收集箱" : parentName,
-            mtime: f.stat.mtime,
-          };
-        })
-      );
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const todayKey = formatDateKey(new Date());
 
-      loaded.sort((a, b) => {
-        if (a.done !== b.done) return a.done ? 1 : -1;
-        const pDiff =
-          PRIORITY_ORDER.indexOf(b.priority) - PRIORITY_ORDER.indexOf(a.priority);
-        if (pDiff !== 0) return pDiff;
-        return b.mtime - a.mtime;
-      });
+  const setSelectedDate = (dateKey: string) => {
+    setSelectedDateState(dateKey);
+    hubState.taskSelectedDate = dateKey;
+  };
 
-      if (!cancelled) {
-        setTasks(loaded);
-        setLoading(false);
-        setActiveTask((prev) =>
-          prev ? loaded.find((t) => t.path === prev.path) ?? null : null
-        );
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
+  const setOverdueOpen = (next: boolean) => {
+    setOverdueOpenState(next);
+    hubState.taskOverdueOpen = next;
+  };
+
+  // Metadata-only scan (zero cachedRead) for calendar dots & bucketing
+  const allMetas: TaskMeta[] = useMemo(() => {
+    const files = getMarkdownFilesInFolder(app, settings.taskFolder);
+    return files.map((file) => {
+      const { due, done, priority } = parseTaskFrontmatter(app, file);
+      const parentName = file.parent?.name || settings.taskFolder;
+      return {
+        file,
+        due,
+        done,
+        priority,
+        folderLabel: parentName,
+      };
+    });
   }, [app, settings.taskFolder, refreshTick]);
 
   const markedDates = useMemo(() => {
     const set = new Set<string>();
-    for (const t of tasks) {
-      if (t.due) set.add(t.due);
+    for (const m of allMetas) {
+      if (m.due) set.add(m.due);
     }
     return set;
-  }, [tasks]);
+  }, [allMetas]);
 
-  const dayTasks = useMemo(() => {
-    return tasks.filter((t) => t.due === selectedDate);
-  }, [tasks, selectedDate]);
+  // Only cachedRead visible tasks (selected date + overdue + undated)
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrate = async (metas: TaskMeta[]): Promise<TaskItem[]> => {
+      const items = await Promise.all(
+        metas.map(async (m) => {
+          const raw = await app.vault.cachedRead(m.file);
+          return {
+            path: m.file.path,
+            basename: m.file.basename,
+            due: m.due,
+            done: m.done,
+            priority: m.priority,
+            preview: cleanMarkdownPreview(raw, 6),
+            folderLabel: m.folderLabel,
+            mtime: m.file.stat.mtime,
+          };
+        })
+      );
+      return sortTasks(items);
+    };
+
+    const load = async () => {
+      const dayMetas = allMetas.filter((m) => m.due === selectedDate);
+      const overdueMetas = allMetas.filter(
+        (m) => m.due !== "" && m.due < todayKey && !m.done && m.due !== selectedDate
+      );
+      const undatedMetas = allMetas.filter((m) => m.due === "" && !m.done);
+
+      const [dayRes, overdueRes, undatedRes] = await Promise.all([
+        hydrate(dayMetas),
+        hydrate(overdueMetas),
+        hydrate(undatedMetas),
+      ]);
+
+      if (!cancelled) {
+        setDayTasks(dayRes);
+        setOverdueTasks(overdueRes);
+        setNoDateTasks(undatedRes);
+        setLoading(false);
+
+        const combined = [...dayRes, ...overdueRes, ...undatedRes];
+        setActiveTask((prev) =>
+          prev ? combined.find((t) => t.path === prev.path) ?? null : null
+        );
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [app, allMetas, selectedDate, todayKey]);
+
+  useEffect(() => {
+    if (!loading && bodyRef.current && hubState.taskScrollTop > 0) {
+      bodyRef.current.scrollTop = hubState.taskScrollTop;
+    }
+  }, [loading]);
+
+  const patchTaskInLists = (path: string, patch: Partial<TaskItem>) => {
+    const apply = (arr: TaskItem[]) =>
+      arr.map((t) => (t.path === path ? { ...t, ...patch } : t));
+    setDayTasks(apply);
+    setOverdueTasks(apply);
+    setNoDateTasks(apply);
+    setActiveTask((prev) => (prev && prev.path === path ? { ...prev, ...patch } : prev));
+  };
 
   const handleToggleDone = async (task: TaskItem, e?: Event) => {
     e?.stopPropagation();
     const file = app.vault.getAbstractFileByPath(task.path);
     if (!(file instanceof TFile)) return;
     const nextDone = !task.done;
-    // Optimistic update
-    setTasks((prev) =>
-      prev.map((t) => (t.path === task.path ? { ...t, done: nextDone } : t))
-    );
-    if (activeTask?.path === task.path) {
-      setActiveTask({ ...task, done: nextDone });
-    }
+    patchTaskInLists(task.path, { done: nextDone });
     await updateTaskFrontmatter(app, file, { done: nextDone });
   };
 
@@ -128,22 +209,16 @@ export function TaskTab({ app, settings, refreshTick }: TaskTabProps) {
     if (!(file instanceof TFile)) return;
     const nextIdx = (PRIORITY_ORDER.indexOf(task.priority) + 1) % PRIORITY_ORDER.length;
     const nextPriority = PRIORITY_ORDER[nextIdx];
-    setActiveTask({ ...task, priority: nextPriority });
-    setTasks((prev) =>
-      prev.map((t) => (t.path === task.path ? { ...t, priority: nextPriority } : t))
-    );
+    patchTaskInLists(task.path, { priority: nextPriority });
     await updateTaskFrontmatter(app, file, { priority: nextPriority });
   };
 
   const handleChangeDue = async (task: TaskItem, newDue: string) => {
-    if (!newDue) return;
     const file = app.vault.getAbstractFileByPath(task.path);
     if (!(file instanceof TFile)) return;
-    setActiveTask({ ...task, due: newDue });
-    setTasks((prev) =>
-      prev.map((t) => (t.path === task.path ? { ...t, due: newDue } : t))
-    );
+    patchTaskInLists(task.path, { due: newDue });
     await updateTaskFrontmatter(app, file, { due: newDue });
+    setDatePickerOpen(false);
   };
 
   const handleOpenInNativeEditor = async (task: TaskItem) => {
@@ -170,14 +245,46 @@ export function TaskTab({ app, settings, refreshTick }: TaskTabProps) {
   const handleDeleteTask = async () => {
     if (!deleteTarget) return;
     const file = app.vault.getAbstractFileByPath(deleteTarget.path);
-    if (file instanceof TFile) {
-      await app.vault.trash(file, true);
+    try {
+      if (file instanceof TFile) {
+        await app.vault.trash(file, true);
+        new Notice("已移至回收站");
+      }
+    } catch (err) {
+      new Notice(`删除失败: ${String(err)}`);
     }
     setDeleteTarget(null);
     setActiveTask(null);
   };
 
+  const renderTaskRow = (task: TaskItem, isOverdue = false) => (
+    <div
+      key={task.path}
+      class={`mh-task-row ${task.done ? "is-done" : ""}`}
+      onClick={() => setActiveTask(task)}
+    >
+      <button
+        type="button"
+        class={`mh-checkbox ${task.done ? "is-checked" : ""}`}
+        aria-label={task.done ? "标记为未完成" : "标记为已完成"}
+        onClick={(e) => handleToggleDone(task, e)}
+      >
+        {task.done && <ObsidianIcon name="check" size={13} />}
+      </button>
+      <div class="mh-task-main">
+        <div class="mh-task-title">{task.basename}</div>
+        <div class="mh-task-meta">
+          <span class={`mh-task-due ${isOverdue ? "is-overdue" : ""}`}>
+            {formatFriendlyDate(task.due)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
   const friendlySelected = formatFriendlyDate(selectedDate);
+  const hasAnyVisible =
+    dayTasks.length > 0 || overdueTasks.length > 0 || noDateTasks.length > 0;
 
   return (
     <div class="mh-tab-page mh-task-page">
@@ -186,44 +293,84 @@ export function TaskTab({ app, settings, refreshTick }: TaskTabProps) {
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           markedDates={markedDates}
-          collapsible={false}
-          weekStartsMonday={false}
+          collapsible
+          initialCollapsed={hubState.taskCollapsed}
+          onCollapsedChange={(c) => {
+            hubState.taskCollapsed = c;
+          }}
+          weekStartsMonday={settings.weekStartsMonday}
         />
       </div>
 
-      <div class="mh-task-body">
-        {!loading && dayTasks.length === 0 ? (
+      <div
+        ref={bodyRef}
+        class="mh-task-body"
+        onScroll={(e) => {
+          hubState.taskScrollTop = (e.currentTarget as HTMLDivElement).scrollTop;
+        }}
+      >
+        {!loading && !hasAnyVisible ? (
           <div class="mh-empty-state">
             <ObsidianIcon name="check-circle-2" size={40} className="mh-empty-icon" />
             <div class="mh-empty-text">{friendlySelected}暂无任务</div>
           </div>
         ) : (
-          <div class="mh-task-group-card">
-            <div class="mh-task-group-header">{friendlySelected}</div>
-            <div class="mh-task-list">
-              {dayTasks.map((task) => (
-                <div
-                  key={task.path}
-                  class={`mh-task-row ${task.done ? "is-done" : ""}`}
-                  onClick={() => setActiveTask(task)}
+          <div class="mh-task-groups">
+            {/* Overdue tasks collapsible group */}
+            {overdueTasks.length > 0 && (
+              <div class="mh-task-group-card">
+                <button
+                  type="button"
+                  class="mh-task-group-toggle is-overdue"
+                  onClick={() => setOverdueOpen(!overdueOpen)}
                 >
-                  <button
-                    type="button"
-                    class={`mh-checkbox mh-priority-${task.priority} ${task.done ? "is-checked" : ""}`}
-                    aria-label={task.done ? "标记为未完成" : "标记为已完成"}
-                    onClick={(e) => handleToggleDone(task, e)}
-                  >
-                    {task.done && <ObsidianIcon name="check" size={13} />}
-                  </button>
-                  <div class="mh-task-main">
-                    <div class="mh-task-title">{task.basename}</div>
-                    <div class="mh-task-meta">
-                      <span class="mh-task-due">{formatFriendlyDate(task.due)}</span>
-                    </div>
+                  <span>已过期（{overdueTasks.length}）</span>
+                  <ObsidianIcon
+                    name={overdueOpen ? "chevron-down" : "chevron-right"}
+                    size={16}
+                  />
+                </button>
+                {overdueOpen && (
+                  <div class="mh-task-list">
+                    {overdueTasks.map((t) => renderTaskRow(t, true))}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Selected date tasks */}
+            <div class="mh-task-group-card">
+              <div class="mh-task-group-header">{friendlySelected}</div>
+              {dayTasks.length === 0 ? (
+                <div class="mh-task-inline-empty">{friendlySelected}暂无任务</div>
+              ) : (
+                <div class="mh-task-list">
+                  {dayTasks.map((t) => renderTaskRow(t))}
                 </div>
-              ))}
+              )}
             </div>
+
+            {/* Undated tasks collapsible group */}
+            {noDateTasks.length > 0 && (
+              <div class="mh-task-group-card">
+                <button
+                  type="button"
+                  class="mh-task-group-toggle"
+                  onClick={() => setNoDateOpen(!noDateOpen)}
+                >
+                  <span>无日期（{noDateTasks.length}）</span>
+                  <ObsidianIcon
+                    name={noDateOpen ? "chevron-down" : "chevron-right"}
+                    size={16}
+                  />
+                </button>
+                {noDateOpen && (
+                  <div class="mh-task-list">
+                    {noDateTasks.map((t) => renderTaskRow(t))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -239,7 +386,7 @@ export function TaskTab({ app, settings, refreshTick }: TaskTabProps) {
 
       {/* TickTick-style half-screen detail drawer */}
       <BottomSheet
-        open={activeTask !== null}
+        open={activeTask !== null && !datePickerOpen}
         onClose={() => setActiveTask(null)}
       >
         {activeTask && (
@@ -271,27 +418,25 @@ export function TaskTab({ app, settings, refreshTick }: TaskTabProps) {
             <div class="mh-task-sheet-date-row">
               <button
                 type="button"
-                class={`mh-checkbox mh-priority-${activeTask.priority} ${activeTask.done ? "is-checked" : ""}`}
+                class={`mh-checkbox ${activeTask.done ? "is-checked" : ""}`}
                 onClick={() => handleToggleDone(activeTask)}
               >
                 {activeTask.done && <ObsidianIcon name="check" size={13} />}
               </button>
-              <label class="mh-date-picker-label">
+              <button
+                type="button"
+                class="mh-date-trigger-btn"
+                onClick={() => setDatePickerOpen(true)}
+              >
+                <ObsidianIcon name="calendar" size={15} />
                 <span>
-                  {formatFriendlyDate(activeTask.due)}，{activeTask.due}
+                  {activeTask.due
+                    ? `${formatFriendlyDate(activeTask.due)}，${activeTask.due}`
+                    : "设置日期"}
                 </span>
-                <input
-                  type="date"
-                  class="mh-hidden-date-input"
-                  value={activeTask.due}
-                  onChange={(e) =>
-                    handleChangeDue(activeTask, (e.target as HTMLInputElement).value)
-                  }
-                />
-              </label>
+              </button>
             </div>
 
-            {/* Clicking this area expands into Obsidian's native MD editor */}
             <div
               class="mh-task-sheet-editor-trigger"
               role="button"
@@ -301,6 +446,61 @@ export function TaskTab({ app, settings, refreshTick }: TaskTabProps) {
               <div class="mh-task-sheet-desc">
                 {activeTask.preview || "点击此处展开编辑正文描述..."}
               </div>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
+      {/* Custom WebView-safe Date Picker Drawer (replaces native input[type=date]) */}
+      <BottomSheet
+        open={datePickerOpen && activeTask !== null}
+        onClose={() => setDatePickerOpen(false)}
+        showCancel
+      >
+        {activeTask && (
+          <div class="mh-date-picker-sheet">
+            <div class="mh-quick-grid">
+              <button
+                type="button"
+                class="mh-quick-tile"
+                onClick={() => handleChangeDue(activeTask, todayKey)}
+              >
+                <ObsidianIcon name="sun" size={20} />
+                <span>今天</span>
+              </button>
+              <button
+                type="button"
+                class="mh-quick-tile"
+                onClick={() => handleChangeDue(activeTask, addDays(new Date(), 1))}
+              >
+                <ObsidianIcon name="sunrise" size={20} />
+                <span>明天</span>
+              </button>
+              <button
+                type="button"
+                class="mh-quick-tile"
+                onClick={() => handleChangeDue(activeTask, addDays(new Date(), 7))}
+              >
+                <ObsidianIcon name="calendar-days" size={20} />
+                <span>下周</span>
+              </button>
+              <button
+                type="button"
+                class="mh-quick-tile"
+                onClick={() => handleChangeDue(activeTask, "")}
+              >
+                <ObsidianIcon name="x-circle" size={20} />
+                <span>清除日期</span>
+              </button>
+            </div>
+            <div class="mh-date-picker-cal">
+              <CalendarPanel
+                selectedDate={activeTask.due || todayKey}
+                onSelectDate={(d) => handleChangeDue(activeTask, d)}
+                markedDates={markedDates}
+                collapsible={false}
+                weekStartsMonday={settings.weekStartsMonday}
+              />
             </div>
           </div>
         )}

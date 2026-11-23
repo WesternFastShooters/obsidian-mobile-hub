@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { App, TFile, Notice } from "obsidian";
-import { DiaryItem, MobileHubSettings } from "../types";
+import { DiaryItem, HubRuntimeState, MobileHubSettings } from "../types";
 import {
   cleanMarkdownPreview,
   ensureFolder,
   extractImagesFromContent,
-  formatDateKey,
   getMarkdownFilesInFolder,
   getUniqueFilePath,
   openFileInEditor,
@@ -20,67 +19,96 @@ import { PromptModal } from "../components/PromptModal";
 interface DiaryTabProps {
   app: App;
   settings: MobileHubSettings;
+  hubState: HubRuntimeState;
   refreshTick: number;
 }
 
-export function DiaryTab({ app, settings, refreshTick }: DiaryTabProps) {
-  const [selectedDate, setSelectedDate] = useState<string>(() =>
-    formatDateKey(new Date())
+interface DiaryMeta {
+  file: TFile;
+  dateKey: string;
+  timeText: string;
+  sortKey: number;
+}
+
+export function DiaryTab({ app, settings, hubState, refreshTick }: DiaryTabProps) {
+  const [selectedDate, setSelectedDateState] = useState<string>(
+    () => hubState.diarySelectedDate
   );
-  const [allDiaries, setAllDiaries] = useState<DiaryItem[]>([]);
+  const [dayDiaries, setDayDiaries] = useState<DiaryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [menuDiary, setMenuDiary] = useState<DiaryItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DiaryItem | null>(null);
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(
+    null
+  );
 
+  const bodyRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<number | null>(null);
   const longPressTriggered = useRef(false);
   const pressStart = useRef<{ x: number; y: number } | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      const files = getMarkdownFilesInFolder(app, settings.diaryFolder);
-      const loaded: DiaryItem[] = await Promise.all(
-        files.map(async (f) => {
-          const raw = await app.vault.cachedRead(f);
-          const { dateKey, timeText, sortKey } = resolveDiaryDateTime(app, f);
-          const preview = cleanMarkdownPreview(raw, 6);
-          const images = extractImagesFromContent(app, raw, f.path, 3);
-          return {
-            path: f.path,
-            basename: f.basename,
-            dateKey,
-            timeText,
-            sortKey,
-            preview,
-            images,
-          };
-        })
-      );
+  const setSelectedDate = (dateKey: string) => {
+    setSelectedDateState(dateKey);
+    hubState.diarySelectedDate = dateKey;
+  };
 
-      loaded.sort((a, b) => a.sortKey - b.sortKey);
-      if (!cancelled) {
-        setAllDiaries(loaded);
-        setLoading(false);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
+  // Metadata-only scan (zero cachedRead) for calendar dots — fast even with 4000+ notes
+  const allMetas: DiaryMeta[] = useMemo(() => {
+    const files = getMarkdownFilesInFolder(app, settings.diaryFolder);
+    const list = files.map((file) => {
+      const { dateKey, timeText, sortKey } = resolveDiaryDateTime(app, file);
+      return { file, dateKey, timeText, sortKey };
+    });
+    list.sort((a, b) => a.sortKey - b.sortKey);
+    return list;
   }, [app, settings.diaryFolder, refreshTick]);
 
   const markedDates = useMemo(() => {
     const set = new Set<string>();
-    for (const d of allDiaries) {
-      set.add(d.dateKey);
+    for (const m of allMetas) {
+      set.add(m.dateKey);
     }
     return set;
-  }, [allDiaries]);
+  }, [allMetas]);
 
-  const dayDiaries = useMemo(() => {
-    return allDiaries.filter((d) => d.dateKey === selectedDate);
-  }, [allDiaries, selectedDate]);
+  // Only cachedRead entries for the currently selected date
+  useEffect(() => {
+    let cancelled = false;
+    const loadDay = async () => {
+      const metas = allMetas.filter((m) => m.dateKey === selectedDate);
+      const loaded: DiaryItem[] = await Promise.all(
+        metas.map(async (m) => {
+          const raw = await app.vault.cachedRead(m.file);
+          const preview = cleanMarkdownPreview(raw, 6);
+          const allImages = extractImagesFromContent(app, raw, m.file.path, 20);
+          return {
+            path: m.file.path,
+            basename: m.file.basename,
+            dateKey: m.dateKey,
+            timeText: m.timeText,
+            sortKey: m.sortKey,
+            preview,
+            images: allImages.slice(0, 3),
+            allImages,
+          };
+        })
+      );
+      if (!cancelled) {
+        setDayDiaries(loaded);
+        setLoading(false);
+      }
+    };
+    loadDay();
+    return () => {
+      cancelled = true;
+    };
+  }, [app, allMetas, selectedDate]);
+
+  useEffect(() => {
+    if (!loading && bodyRef.current && hubState.diaryScrollTop > 0) {
+      bodyRef.current.scrollTop = hubState.diaryScrollTop;
+    }
+  }, [loading]);
 
   const handleOpen = async (path: string) => {
     const file = app.vault.getAbstractFileByPath(path);
@@ -108,8 +136,13 @@ export function DiaryTab({ app, settings, refreshTick }: DiaryTabProps) {
   const handleDeleteDiary = async () => {
     if (!deleteTarget) return;
     const file = app.vault.getAbstractFileByPath(deleteTarget.path);
-    if (file instanceof TFile) {
-      await app.vault.trash(file, true);
+    try {
+      if (file instanceof TFile) {
+        await app.vault.trash(file, true);
+        new Notice("已移至回收站");
+      }
+    } catch (err) {
+      new Notice(`删除失败: ${String(err)}`);
     }
     setDeleteTarget(null);
   };
@@ -156,11 +189,21 @@ export function DiaryTab({ app, settings, refreshTick }: DiaryTabProps) {
           onSelectDate={setSelectedDate}
           markedDates={markedDates}
           collapsible
-          weekStartsMonday
+          initialCollapsed={hubState.diaryCollapsed}
+          onCollapsedChange={(c) => {
+            hubState.diaryCollapsed = c;
+          }}
+          weekStartsMonday={settings.weekStartsMonday}
         />
       </div>
 
-      <div class="mh-diary-body">
+      <div
+        ref={bodyRef}
+        class="mh-diary-body"
+        onScroll={(e) => {
+          hubState.diaryScrollTop = (e.currentTarget as HTMLDivElement).scrollTop;
+        }}
+      >
         {!loading && dayDiaries.length === 0 ? (
           <div class="mh-empty-state">
             <ObsidianIcon name="inbox" size={44} className="mh-empty-icon" />
@@ -168,57 +211,78 @@ export function DiaryTab({ app, settings, refreshTick }: DiaryTabProps) {
           </div>
         ) : (
           <div class="mh-timeline">
-            {dayDiaries.map((entry) => (
-              <div key={entry.path} class="mh-timeline-item">
-                <div class="mh-timeline-rail">
-                  <span class="mh-timeline-dot" />
-                  <span class="mh-timeline-line" />
-                </div>
-                <div class="mh-timeline-content">
-                  <div class="mh-timeline-header">
-                    <span class="mh-timeline-time">{entry.timeText}</span>
-                    <span class="mh-timeline-sub">{entry.basename}</span>
+            {dayDiaries.map((entry) => {
+              const extraImages = Math.max(0, entry.allImages.length - 3);
+              return (
+                <div key={entry.path} class="mh-timeline-item">
+                  <div class="mh-timeline-rail">
+                    <span class="mh-timeline-dot" />
+                    <span class="mh-timeline-line" />
                   </div>
-                  <article
-                    class="mh-diary-card"
-                    onPointerDown={(e) => handleCardPointerDown(entry, e)}
-                    onPointerMove={handleCardPointerMove}
-                    onPointerUp={handleCardPointerUp}
-                    onPointerCancel={handleCardPointerUp}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setMenuDiary(entry);
-                    }}
-                    onClick={() => {
-                      if (longPressTriggered.current) {
-                        longPressTriggered.current = false;
-                        return;
-                      }
-                      handleOpen(entry.path);
-                    }}
-                  >
-                    {entry.images.length > 0 && (
-                      <div class="mh-diary-images">
-                        {entry.images.map((src, i) => (
-                          <img
-                            key={i}
-                            src={src}
-                            class="mh-diary-thumb"
-                            loading="lazy"
-                            alt=""
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {entry.preview ? (
-                      <div class="mh-diary-text">{entry.preview}</div>
-                    ) : entry.images.length === 0 ? (
-                      <div class="mh-diary-text is-muted">（空白日记）</div>
-                    ) : null}
-                  </article>
+                  <div class="mh-timeline-content">
+                    <div class="mh-timeline-header">
+                      <span class="mh-timeline-time">{entry.timeText}</span>
+                      <span class="mh-timeline-sub">{entry.basename}</span>
+                    </div>
+                    <article
+                      class="mh-diary-card"
+                      onPointerDown={(e) => handleCardPointerDown(entry, e)}
+                      onPointerMove={handleCardPointerMove}
+                      onPointerUp={handleCardPointerUp}
+                      onPointerCancel={handleCardPointerUp}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setMenuDiary(entry);
+                      }}
+                      onClick={() => {
+                        if (longPressTriggered.current) {
+                          longPressTriggered.current = false;
+                          return;
+                        }
+                        handleOpen(entry.path);
+                      }}
+                    >
+                      {entry.images.length > 0 && (
+                        <div class="mh-diary-images">
+                          {entry.images.map((src, i) => (
+                            <div
+                              key={i}
+                              class="mh-diary-thumb-wrap"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (longPressTriggered.current) {
+                                  longPressTriggered.current = false;
+                                  return;
+                                }
+                                setLightbox({ images: entry.allImages, index: i });
+                              }}
+                            >
+                              <img
+                                src={src}
+                                class="mh-diary-thumb"
+                                loading="lazy"
+                                draggable={false}
+                                alt=""
+                              />
+                              {i === 2 && extraImages > 0 && (
+                                <span class="mh-diary-thumb-more">
+                                  +{extraImages}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {entry.preview ? (
+                        <div class="mh-diary-text">{entry.preview}</div>
+                      ) : entry.images.length === 0 ? (
+                        <div class="mh-diary-text is-muted">（空白日记）</div>
+                      ) : null}
+                    </article>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -232,7 +296,68 @@ export function DiaryTab({ app, settings, refreshTick }: DiaryTabProps) {
         <ObsidianIcon name="pencil" size={22} />
       </button>
 
-      {/* Long-press bottom drawer (Edit / Delete / Cancel — unified Yuque 3-tier layout) */}
+      {/* Lightbox Image Preview */}
+      {lightbox && (
+        <div
+          class="mh-lightbox-backdrop"
+          onClick={() => setLightbox(null)}
+        >
+          <img
+            src={lightbox.images[lightbox.index]}
+            class="mh-lightbox-img"
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+          />
+          {lightbox.images.length > 1 && (
+            <div
+              class="mh-lightbox-controls"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                class="mh-lightbox-nav"
+                aria-label="上一张"
+                onClick={() =>
+                  setLightbox((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          index:
+                            (prev.index - 1 + prev.images.length) %
+                            prev.images.length,
+                        }
+                      : null
+                  )
+                }
+              >
+                <ObsidianIcon name="chevron-left" size={22} />
+              </button>
+              <span class="mh-lightbox-counter">
+                {lightbox.index + 1} / {lightbox.images.length}
+              </span>
+              <button
+                type="button"
+                class="mh-lightbox-nav"
+                aria-label="下一张"
+                onClick={() =>
+                  setLightbox((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          index: (prev.index + 1) % prev.images.length,
+                        }
+                      : null
+                  )
+                }
+              >
+                <ObsidianIcon name="chevron-right" size={22} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Long-press bottom drawer (unified 3-tier Yuque layout) */}
       <BottomSheet
         open={menuDiary !== null}
         onClose={() => setMenuDiary(null)}

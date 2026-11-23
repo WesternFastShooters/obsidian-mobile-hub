@@ -1,11 +1,39 @@
-import { App, Platform, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, setIcon } from "obsidian";
-import { DEFAULT_SETTINGS, HubTabId, MobileHubSettings } from "./types";
+import {
+  App,
+  Platform,
+  Plugin,
+  PluginSettingTab,
+  Setting,
+  TAbstractFile,
+  WorkspaceLeaf,
+  normalizePath,
+  setIcon,
+} from "obsidian";
+import {
+  DEFAULT_SETTINGS,
+  HubRuntimeState,
+  MobileHubSettings,
+} from "./types";
 import { MobileHubView, VIEW_TYPE_MOBILE_HUB } from "./views/MobileHubView";
+import { formatDateKey } from "./utils/obsidian";
 
 export default class MobileHubPlugin extends Plugin {
   settings: MobileHubSettings = { ...DEFAULT_SETTINGS };
-  lastTab: HubTabId = "memo";
-  lastKnowledgeRoot: string | null = null;
+  hubState: HubRuntimeState = {
+    lastTab: "memo",
+    memoScrollTop: 0,
+    diarySelectedDate: formatDateKey(new Date()),
+    diaryCollapsed: false,
+    diaryScrollTop: 0,
+    taskSelectedDate: formatDateKey(new Date()),
+    taskCollapsed: false,
+    taskScrollTop: 0,
+    taskOverdueOpen: true,
+    kbRootPath: null,
+    kbExpandedPaths: [],
+    kbScrollTop: 0,
+  };
+
   private refreshTimer: number | null = null;
   private editorBackBarEl: HTMLElement | null = null;
   private touchStartX = 0;
@@ -45,22 +73,41 @@ export default class MobileHubPlugin extends Plugin {
       })
     );
 
-    // Refresh Hub views when vault files or metadata change
-    const scheduleRefresh = () => {
+    // Filter vault events by current active tab's relevant folder to avoid unnecessary re-renders on large vaults
+    const scheduleRefreshForFile = (file?: TAbstractFile | string) => {
+      const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
+      if (leaves.length === 0) return;
+
+      if (file) {
+        const path = typeof file === "string" ? file : file.path;
+        if (!this.isPathRelevantToActiveTab(path)) return;
+      }
+
       if (this.refreshTimer !== null) {
         window.clearTimeout(this.refreshTimer);
       }
       this.refreshTimer = window.setTimeout(() => {
         this.refreshTimer = null;
         this.refreshAllHubViews();
-      }, 120);
+      }, 160);
     };
 
-    this.registerEvent(this.app.vault.on("create", scheduleRefresh));
-    this.registerEvent(this.app.vault.on("delete", scheduleRefresh));
-    this.registerEvent(this.app.vault.on("rename", scheduleRefresh));
-    this.registerEvent(this.app.vault.on("modify", scheduleRefresh));
-    this.registerEvent(this.app.metadataCache.on("changed", scheduleRefresh));
+    this.registerEvent(this.app.vault.on("create", (f) => scheduleRefreshForFile(f)));
+    this.registerEvent(this.app.vault.on("delete", (f) => scheduleRefreshForFile(f)));
+    this.registerEvent(
+      this.app.vault.on("rename", (f, oldPath) => {
+        if (
+          this.isPathRelevantToActiveTab(f.path) ||
+          this.isPathRelevantToActiveTab(oldPath)
+        ) {
+          scheduleRefreshForFile();
+        }
+      })
+    );
+    this.registerEvent(this.app.vault.on("modify", (f) => scheduleRefreshForFile(f)));
+    this.registerEvent(
+      this.app.metadataCache.on("changed", (f) => scheduleRefreshForFile(f))
+    );
 
     this.installLeftSwipeBlocker();
     this.mountEditorBackBar();
@@ -87,6 +134,24 @@ export default class MobileHubPlugin extends Plugin {
     if (this.refreshTimer !== null) {
       window.clearTimeout(this.refreshTimer);
     }
+  }
+
+  private isPathRelevantToActiveTab(rawPath: string): boolean {
+    const p = normalizePath(rawPath);
+    const tab = this.hubState.lastTab;
+    const memoPrefix = `${normalizePath(this.settings.memoFolder)}/`;
+    const diaryPrefix = `${normalizePath(this.settings.diaryFolder)}/`;
+    const taskPrefix = `${normalizePath(this.settings.taskFolder)}/`;
+
+    if (tab === "memo") return p === this.settings.memoFolder || p.startsWith(memoPrefix);
+    if (tab === "diary") return p === this.settings.diaryFolder || p.startsWith(diaryPrefix);
+    if (tab === "task") return p === this.settings.taskFolder || p.startsWith(taskPrefix);
+    // Knowledge tab excludes memo/diary/task
+    return (
+      !p.startsWith(memoPrefix) &&
+      !p.startsWith(diaryPrefix) &&
+      !p.startsWith(taskPrefix)
+    );
   }
 
   private mountEditorBackBar(): void {
@@ -127,7 +192,8 @@ export default class MobileHubPlugin extends Plugin {
   }
 
   /**
-   * Intercept left-to-right edge swipe gestures that open Obsidian Mobile's left file drawer.
+   * Intercept ONLY left-edge right-swipe gestures (<= 32px from left edge) while on Mobile Hub view.
+   * Never blocks editor text selection, wide tables, or calendar horizontal swipes.
    */
   private installLeftSwipeBlocker(): void {
     this.boundTouchStart = (e: TouchEvent) => {
@@ -139,10 +205,14 @@ export default class MobileHubPlugin extends Plugin {
 
     this.boundTouchMove = (e: TouchEvent) => {
       if (!this.settings.disableLeftDrawerSwipe) return;
+      if (!document.body.classList.contains("is-mobile")) return;
+      if (!document.body.classList.contains("mh-hub-active")) return;
       if (e.touches.length !== 1) return;
+      // Only intercept swipes starting from the left edge (<= 32px)
+      if (this.touchStartX > 32) return;
+
       const dx = e.touches[0].clientX - this.touchStartX;
       const dy = e.touches[0].clientY - this.touchStartY;
-      // Block horizontal right-swipe gesture from triggering Obsidian's left drawer
       if (dx > 10 && Math.abs(dx) > Math.abs(dy) * 1.1) {
         const leftSplit = this.app.workspace.leftSplit as unknown as {
           collapsed?: boolean;
@@ -290,6 +360,18 @@ class MobileHubSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("日历每周以周一开始")
+      .setDesc("日记与任务 Tab 的日历统一生效")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.weekStartsMonday)
+          .onChange(async (val) => {
+            this.plugin.settings.weekStartsMonday = val;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
       .setName("移动端启动时自动打开主界面")
       .addToggle((toggle) =>
         toggle
@@ -301,7 +383,7 @@ class MobileHubSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("禁用从左向右滑动拉出左侧抽屉")
+      .setName("禁用从左边缘向右滑动拉出左侧抽屉")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.disableLeftDrawerSwipe)

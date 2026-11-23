@@ -9,6 +9,7 @@ export interface MobileHubSettings {
   excludedFolders: string[];
   autoOpenOnMobile: boolean;
   disableLeftDrawerSwipe: boolean;
+  weekStartsMonday: boolean;
   /** Folder path -> ordered child names (file/folder basename) */
   customOrder: Record<string, string[]>;
 }
@@ -20,8 +21,24 @@ export const DEFAULT_SETTINGS: MobileHubSettings = {
   excludedFolders: ["assets", ".obsidian"],
   autoOpenOnMobile: true,
   disableLeftDrawerSwipe: true,
+  weekStartsMonday: true,
   customOrder: {},
 };
+
+export interface HubRuntimeState {
+  lastTab: HubTabId;
+  memoScrollTop: number;
+  diarySelectedDate: string;
+  diaryCollapsed: boolean;
+  diaryScrollTop: number;
+  taskSelectedDate: string;
+  taskCollapsed: boolean;
+  taskScrollTop: number;
+  taskOverdueOpen: boolean;
+  kbRootPath: string | null;
+  kbExpandedPaths: string[];
+  kbScrollTop: number;
+}
 
 export interface MemoItem {
   path: string;
@@ -39,7 +56,8 @@ export interface DiaryItem {
   timeText: string; // HH:mm
   sortKey: number;
   preview: string;
-  images: string[]; // resolved resource URLs
+  images: string[]; // up to 3 thumbnails
+  allImages: string[]; // all images for lightbox
 }
 
 export interface TaskItem {

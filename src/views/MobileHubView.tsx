@@ -3,7 +3,7 @@ import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import type MobileHubPlugin from "../main";
 import { HubTabId, MobileHubSettings } from "../types";
-import { openObsidianSettings } from "../utils/obsidian";
+import { openObsidianSettings, openObsidianSwitcher } from "../utils/obsidian";
 import { ObsidianIcon } from "../components/ObsidianIcon";
 import { MemoTab } from "../tabs/MemoTab";
 import { DiaryTab } from "../tabs/DiaryTab";
@@ -21,20 +21,13 @@ const TABS: { id: HubTabId; label: string }[] = [
 
 interface MobileHubRootProps {
   plugin: MobileHubPlugin;
-  initialTab: HubTabId;
-  onTabChange: (tab: HubTabId) => void;
   subscribeRefresh: (cb: () => void) => () => void;
 }
 
-function MobileHubRoot({
-  plugin,
-  initialTab,
-  onTabChange,
-  subscribeRefresh,
-}: MobileHubRootProps) {
-  const [activeTab, setActiveTab] = useState<HubTabId>(initialTab);
+function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
+  const [activeTab, setActiveTab] = useState<HubTabId>(plugin.hubState.lastTab);
   const [kbInSubPage, setKbInSubPage] = useState<boolean>(
-    Boolean(plugin.lastKnowledgeRoot)
+    Boolean(plugin.hubState.kbRootPath)
   );
   const [refreshTick, setRefreshTick] = useState(0);
   const [settings, setSettings] = useState<MobileHubSettings>(() => ({
@@ -50,7 +43,7 @@ function MobileHubRoot({
 
   const selectTab = (tab: HubTabId) => {
     setActiveTab(tab);
-    onTabChange(tab);
+    plugin.hubState.lastTab = tab;
   };
 
   const handleUpdateCustomOrder = async (
@@ -58,6 +51,15 @@ function MobileHubRoot({
     orderedNames: string[]
   ) => {
     plugin.settings.customOrder[folderPath] = orderedNames;
+    await plugin.saveSettings();
+    setSettings({ ...plugin.settings });
+    setRefreshTick((t) => t + 1);
+  };
+
+  const handleReplaceCustomOrderMap = async (
+    nextMap: Record<string, string[]>
+  ) => {
+    plugin.settings.customOrder = nextMap;
     await plugin.saveSettings();
     setSettings({ ...plugin.settings });
     setRefreshTick((t) => t + 1);
@@ -92,6 +94,17 @@ function MobileHubRoot({
               </button>
             ))}
           </nav>
+
+          {activeTab !== "knowledge" && (
+            <button
+              type="button"
+              class="mh-icon-btn mh-topbar-search-btn"
+              aria-label="全局搜索"
+              onClick={() => openObsidianSwitcher(plugin.app)}
+            >
+              <ObsidianIcon name="search" size={19} />
+            </button>
+          )}
         </header>
       )}
 
@@ -100,6 +113,7 @@ function MobileHubRoot({
           <MemoTab
             app={plugin.app}
             settings={settings}
+            hubState={plugin.hubState}
             refreshTick={refreshTick}
           />
         )}
@@ -107,6 +121,7 @@ function MobileHubRoot({
           <DiaryTab
             app={plugin.app}
             settings={settings}
+            hubState={plugin.hubState}
             refreshTick={refreshTick}
           />
         )}
@@ -114,6 +129,7 @@ function MobileHubRoot({
           <TaskTab
             app={plugin.app}
             settings={settings}
+            hubState={plugin.hubState}
             refreshTick={refreshTick}
           />
         )}
@@ -121,13 +137,14 @@ function MobileHubRoot({
           <KnowledgeTab
             app={plugin.app}
             settings={settings}
+            hubState={plugin.hubState}
             refreshTick={refreshTick}
-            initialRootPath={plugin.lastKnowledgeRoot}
             onRootPathChange={(path) => {
-              plugin.lastKnowledgeRoot = path;
+              plugin.hubState.kbRootPath = path;
               setKbInSubPage(Boolean(path));
             }}
             onUpdateCustomOrder={handleUpdateCustomOrder}
+            onReplaceCustomOrderMap={handleReplaceCustomOrderMap}
           />
         )}
       </main>
@@ -171,10 +188,6 @@ export class MobileHubView extends ItemView {
     render(
       <MobileHubRoot
         plugin={this.plugin}
-        initialTab={this.plugin.lastTab}
-        onTabChange={(tab) => {
-          this.plugin.lastTab = tab;
-        }}
         subscribeRefresh={(cb) => {
           this.listeners.add(cb);
           return () => this.listeners.delete(cb);

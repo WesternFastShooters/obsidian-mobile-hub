@@ -1,6 +1,6 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { App, TFile, Notice } from "obsidian";
-import { MemoItem, MobileHubSettings } from "../types";
+import { HubRuntimeState, MemoItem, MobileHubSettings } from "../types";
 import {
   cleanMarkdownPreview,
   ensureFolder,
@@ -17,24 +17,36 @@ import { PromptModal } from "../components/PromptModal";
 interface MemoTabProps {
   app: App;
   settings: MobileHubSettings;
+  hubState: HubRuntimeState;
   refreshTick: number;
 }
 
-export function MemoTab({ app, settings, refreshTick }: MemoTabProps) {
+const PAGE_SIZE = 30;
+
+export function MemoTab({ app, settings, hubState, refreshTick }: MemoTabProps) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [items, setItems] = useState<MemoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [menuItem, setMenuItem] = useState<MemoItem | null>(null);
   const [renameTarget, setRenameTarget] = useState<MemoItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MemoItem | null>(null);
 
+  const pageRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const allFiles = useMemo(() => {
+    const files = getMarkdownFilesInFolder(app, settings.memoFolder);
+    files.sort((a, b) => b.stat.mtime - a.stat.mtime);
+    return files;
+  }, [app, settings.memoFolder, refreshTick]);
+
+  // Paginated lazy cachedRead (only reads visible window, safe for 4000+ file vaults)
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const files = getMarkdownFilesInFolder(app, settings.memoFolder);
-      files.sort((a, b) => b.stat.mtime - a.stat.mtime);
-
+      const slice = allFiles.slice(0, visibleCount);
       const loaded: MemoItem[] = await Promise.all(
-        files.map(async (f) => {
+        slice.map(async (f) => {
           const raw = await app.vault.cachedRead(f);
           const preview = cleanMarkdownPreview(raw, 10) || f.basename;
           return {
@@ -57,7 +69,30 @@ export function MemoTab({ app, settings, refreshTick }: MemoTabProps) {
     return () => {
       cancelled = true;
     };
-  }, [app, settings.memoFolder, refreshTick]);
+  }, [app, allFiles, visibleCount]);
+
+  // Restore scroll position after initial items render
+  useEffect(() => {
+    if (!loading && pageRef.current && hubState.memoScrollTop > 0) {
+      pageRef.current.scrollTop = hubState.memoScrollTop;
+    }
+  }, [loading]);
+
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || visibleCount >= allFiles.length) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, allFiles.length));
+        }
+      },
+      { root: pageRef.current, rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [allFiles.length, visibleCount]);
 
   const handleOpen = async (path: string) => {
     const file = app.vault.getAbstractFileByPath(path);
@@ -85,8 +120,13 @@ export function MemoTab({ app, settings, refreshTick }: MemoTabProps) {
     if (file instanceof TFile) {
       const parentPath = file.parent ? file.parent.path : settings.memoFolder;
       const targetPath = parentPath ? `${parentPath}/${newName}.md` : `${newName}.md`;
+      if (targetPath !== file.path && app.vault.getAbstractFileByPath(targetPath)) {
+        new Notice("同名备忘录已存在");
+        return;
+      }
       try {
         await app.fileManager.renameFile(file, targetPath);
+        new Notice("已重命名");
       } catch (err) {
         new Notice(`重命名失败: ${String(err)}`);
       }
@@ -97,19 +137,30 @@ export function MemoTab({ app, settings, refreshTick }: MemoTabProps) {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const file = app.vault.getAbstractFileByPath(deleteTarget.path);
-    if (file instanceof TFile) {
-      await app.vault.trash(file, true);
+    try {
+      if (file instanceof TFile) {
+        await app.vault.trash(file, true);
+        new Notice("已移至回收站");
+      }
+    } catch (err) {
+      new Notice(`删除失败: ${String(err)}`);
     }
     setDeleteTarget(null);
   };
 
   return (
-    <div class="mh-tab-page mh-memo-page">
+    <div
+      ref={pageRef}
+      class="mh-tab-page mh-memo-page"
+      onScroll={(e) => {
+        hubState.memoScrollTop = (e.currentTarget as HTMLDivElement).scrollTop;
+      }}
+    >
       {!loading && items.length === 0 ? (
         <div class="mh-empty-state">
           <ObsidianIcon name="sticky-note" size={40} className="mh-empty-icon" />
           <div class="mh-empty-text">暂无备忘录</div>
-          <div class="mh-empty-sub">点击右下角 + 记录第一条灵感</div>
+          <div class="mh-empty-sub">点击下方 + 记录第一条灵感</div>
         </div>
       ) : (
         <div class="mh-memo-list">
@@ -136,6 +187,11 @@ export function MemoTab({ app, settings, refreshTick }: MemoTabProps) {
               </div>
             </article>
           ))}
+          {visibleCount < allFiles.length && (
+            <div ref={sentinelRef} class="mh-load-more">
+              加载更多...
+            </div>
+          )}
         </div>
       )}
 

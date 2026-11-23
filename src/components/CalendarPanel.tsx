@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ObsidianIcon } from "./ObsidianIcon";
 import { formatDateKey } from "../utils/obsidian";
 
@@ -7,6 +7,8 @@ interface CalendarPanelProps {
   onSelectDate: (dateKey: string) => void;
   markedDates: Set<string>;
   collapsible?: boolean;
+  initialCollapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
   weekStartsMonday?: boolean;
 }
 
@@ -24,6 +26,8 @@ export function CalendarPanel({
   onSelectDate,
   markedDates,
   collapsible = false,
+  initialCollapsed = false,
+  onCollapsedChange,
   weekStartsMonday = true,
 }: CalendarPanelProps) {
   const initialDate = useMemo(() => {
@@ -33,7 +37,8 @@ export function CalendarPanel({
 
   const [viewYear, setViewYear] = useState(initialDate.year);
   const [viewMonth, setViewMonth] = useState(initialDate.month);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsedState] = useState(initialCollapsed);
+  const [transitionKey, setTransitionKey] = useState(0);
 
   // Center Year/Month Picker Modal
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -41,7 +46,25 @@ export function CalendarPanel({
 
   const handlerDragStartY = useRef<number | null>(null);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const activeYearBtnRef = useRef<HTMLButtonElement>(null);
   const todayKey = formatDateKey(new Date());
+
+  const setCollapsed = (next: boolean | ((prev: boolean) => boolean)) => {
+    setCollapsedState((prev) => {
+      const resolved = typeof next === "function" ? next(prev) : next;
+      onCollapsedChange?.(resolved);
+      return resolved;
+    });
+  };
+
+  // Auto-scroll active year into center when switching to Year tab (P2 #13)
+  useEffect(() => {
+    if (pickerOpen && pickerTab === "year") {
+      requestAnimationFrame(() => {
+        activeYearBtnRef.current?.scrollIntoView({ block: "center" });
+      });
+    }
+  }, [pickerOpen, pickerTab]);
 
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -96,6 +119,7 @@ export function CalendarPanel({
   const visibleWeeks = collapsed ? [weeks[activeWeekIndex]] : weeks;
 
   const shiftPeriod = (delta: number) => {
+    setTransitionKey((k) => k + 1);
     if (collapsed) {
       const [y, m, d] = selectedDate.split("-").map(Number);
       const next = new Date(y, m - 1, d + delta * 7);
@@ -114,10 +138,10 @@ export function CalendarPanel({
     setViewYear(now.getFullYear());
     setViewMonth(now.getMonth());
     onSelectDate(formatDateKey(now));
+    setTransitionKey((k) => k + 1);
     setPickerOpen(false);
   };
 
-  // Horizontal swipe on calendar area to switch month/week
   const handleSwipeStart = (clientX: number, clientY: number) => {
     swipeStart.current = { x: clientX, y: clientY };
   };
@@ -132,7 +156,6 @@ export function CalendarPanel({
     }
   };
 
-  // Vertical drag on handler bar to collapse/expand month <-> week
   const handleHandlerPointerDown = (e: PointerEvent) => {
     if (!collapsible) return;
     e.stopPropagation();
@@ -149,9 +172,9 @@ export function CalendarPanel({
     e.stopPropagation();
     const dy = e.clientY - handlerDragStartY.current;
     handlerDragStartY.current = null;
-    if (dy < -24) {
+    if (dy < -20) {
       setCollapsed(true);
-    } else if (dy > 24) {
+    } else if (dy > 20) {
       setCollapsed(false);
     } else {
       setCollapsed((prev) => !prev);
@@ -207,7 +230,7 @@ export function CalendarPanel({
         ))}
       </div>
 
-      <div class="mh-cal-grid">
+      <div key={transitionKey} class="mh-cal-grid mh-cal-grid-animate">
         {visibleWeeks.map((row, rIdx) => (
           <div key={rIdx} class="mh-cal-row">
             {row.map((cell) => {
@@ -255,7 +278,6 @@ export function CalendarPanel({
         </div>
       )}
 
-      {/* Centered Year / Month Picker Modal (Durian Diary style, native Obsidian colors) */}
       {pickerOpen && (
         <div
           class="mh-modal-backdrop"
@@ -303,6 +325,7 @@ export function CalendarPanel({
                       class={`mh-ym-month-cell ${active ? "is-active" : ""}`}
                       onClick={() => {
                         setViewMonth(m - 1);
+                        setTransitionKey((k) => k + 1);
                         setPickerOpen(false);
                       }}
                     >
@@ -318,6 +341,7 @@ export function CalendarPanel({
                   return (
                     <button
                       key={y}
+                      ref={active ? activeYearBtnRef : undefined}
                       type="button"
                       class={`mh-ym-year-item ${active ? "is-active" : ""}`}
                       onClick={() => {

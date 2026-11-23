@@ -32,6 +32,7 @@ var DEFAULT_SETTINGS = {
   excludedFolders: ["assets", ".obsidian"],
   autoOpenOnMobile: true,
   disableLeftDrawerSwipe: true,
+  weekStartsMonday: true,
   customOrder: {}
 };
 
@@ -682,19 +683,75 @@ function BottomSheet({
   cancelText = "\u53D6\u6D88",
   children
 }) {
-  if (!open) return null;
+  const [rendered, setRendered] = d2(open);
+  const [closing, setClosing] = d2(false);
+  const [dragOffsetY, setDragOffsetY] = d2(0);
+  const dragStartY = A2(null);
+  const panelRef = A2(null);
+  h2(() => {
+    if (open) {
+      setRendered(true);
+      setClosing(false);
+      setDragOffsetY(0);
+    } else if (rendered) {
+      setClosing(true);
+      const timer = window.setTimeout(() => {
+        setRendered(false);
+        setClosing(false);
+        setDragOffsetY(0);
+      }, 190);
+      return () => window.clearTimeout(timer);
+    }
+  }, [open]);
+  if (!rendered) return null;
+  const handleTouchStart = (e3) => {
+    if (e3.touches.length !== 1) return;
+    const panel = panelRef.current;
+    if (panel && panel.scrollTop > 0) return;
+    dragStartY.current = e3.touches[0].clientY;
+  };
+  const handleTouchMove = (e3) => {
+    if (dragStartY.current === null || e3.touches.length !== 1) return;
+    const dy = e3.touches[0].clientY - dragStartY.current;
+    if (dy > 0) {
+      setDragOffsetY(dy);
+    }
+  };
+  const handleTouchEnd = () => {
+    if (dragStartY.current === null) return;
+    dragStartY.current = null;
+    if (dragOffsetY > 75) {
+      setDragOffsetY(0);
+      onClose();
+    } else {
+      setDragOffsetY(0);
+    }
+  };
   return /* @__PURE__ */ u3(
     "div",
     {
-      class: "mh-sheet-backdrop",
+      class: `mh-sheet-backdrop ${closing ? "is-closing" : ""}`,
       onClick: (e3) => {
         if (e3.target === e3.currentTarget) onClose();
       },
-      children: /* @__PURE__ */ u3("div", { class: "mh-sheet-panel", role: "dialog", "aria-modal": "true", children: [
-        title && /* @__PURE__ */ u3("div", { class: "mh-sheet-title", children: title }),
-        /* @__PURE__ */ u3("div", { class: "mh-sheet-body", children }),
-        showCancel && /* @__PURE__ */ u3("button", { type: "button", class: "mh-sheet-cancel", onClick: onClose, children: cancelText })
-      ] })
+      children: /* @__PURE__ */ u3(
+        "div",
+        {
+          ref: panelRef,
+          class: `mh-sheet-panel ${closing ? "is-closing" : ""}`,
+          style: dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: "none" } : void 0,
+          role: "dialog",
+          "aria-modal": "true",
+          onTouchStart: handleTouchStart,
+          onTouchMove: handleTouchMove,
+          onTouchEnd: handleTouchEnd,
+          children: [
+            title && /* @__PURE__ */ u3("div", { class: "mh-sheet-title", children: title }),
+            /* @__PURE__ */ u3("div", { class: "mh-sheet-body", children }),
+            showCancel && /* @__PURE__ */ u3("button", { type: "button", class: "mh-sheet-cancel", onClick: onClose, children: cancelText })
+          ]
+        }
+      )
     }
   );
 }
@@ -771,19 +828,27 @@ function PromptModal({
 }
 
 // src/tabs/MemoTab.tsx
-function MemoTab({ app, settings, refreshTick }) {
+var PAGE_SIZE = 30;
+function MemoTab({ app, settings, hubState, refreshTick }) {
+  const [visibleCount, setVisibleCount] = d2(PAGE_SIZE);
   const [items, setItems] = d2([]);
   const [loading, setLoading] = d2(true);
   const [menuItem, setMenuItem] = d2(null);
   const [renameTarget, setRenameTarget] = d2(null);
   const [deleteTarget, setDeleteTarget] = d2(null);
+  const pageRef = A2(null);
+  const sentinelRef = A2(null);
+  const allFiles = T2(() => {
+    const files = getMarkdownFilesInFolder(app, settings.memoFolder);
+    files.sort((a3, b2) => b2.stat.mtime - a3.stat.mtime);
+    return files;
+  }, [app, settings.memoFolder, refreshTick]);
   h2(() => {
     let cancelled = false;
     const load = async () => {
-      const files = getMarkdownFilesInFolder(app, settings.memoFolder);
-      files.sort((a3, b2) => b2.stat.mtime - a3.stat.mtime);
+      const slice = allFiles.slice(0, visibleCount);
       const loaded = await Promise.all(
-        files.map(async (f4) => {
+        slice.map(async (f4) => {
           const raw = await app.vault.cachedRead(f4);
           const preview = cleanMarkdownPreview(raw, 10) || f4.basename;
           return {
@@ -805,7 +870,26 @@ function MemoTab({ app, settings, refreshTick }) {
     return () => {
       cancelled = true;
     };
-  }, [app, settings.memoFolder, refreshTick]);
+  }, [app, allFiles, visibleCount]);
+  h2(() => {
+    if (!loading && pageRef.current && hubState.memoScrollTop > 0) {
+      pageRef.current.scrollTop = hubState.memoScrollTop;
+    }
+  }, [loading]);
+  h2(() => {
+    const el = sentinelRef.current;
+    if (!el || visibleCount >= allFiles.length) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e3) => e3.isIntersecting)) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, allFiles.length));
+        }
+      },
+      { root: pageRef.current, rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [allFiles.length, visibleCount]);
   const handleOpen = async (path) => {
     const file = app.vault.getAbstractFileByPath(path);
     if (file instanceof import_obsidian3.TFile) {
@@ -830,8 +914,13 @@ function MemoTab({ app, settings, refreshTick }) {
     if (file instanceof import_obsidian3.TFile) {
       const parentPath = file.parent ? file.parent.path : settings.memoFolder;
       const targetPath = parentPath ? `${parentPath}/${newName}.md` : `${newName}.md`;
+      if (targetPath !== file.path && app.vault.getAbstractFileByPath(targetPath)) {
+        new import_obsidian3.Notice("\u540C\u540D\u5907\u5FD8\u5F55\u5DF2\u5B58\u5728");
+        return;
+      }
       try {
         await app.fileManager.renameFile(file, targetPath);
+        new import_obsidian3.Notice("\u5DF2\u91CD\u547D\u540D");
       } catch (err) {
         new import_obsidian3.Notice(`\u91CD\u547D\u540D\u5931\u8D25: ${String(err)}`);
       }
@@ -841,138 +930,156 @@ function MemoTab({ app, settings, refreshTick }) {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const file = app.vault.getAbstractFileByPath(deleteTarget.path);
-    if (file instanceof import_obsidian3.TFile) {
-      await app.vault.trash(file, true);
+    try {
+      if (file instanceof import_obsidian3.TFile) {
+        await app.vault.trash(file, true);
+        new import_obsidian3.Notice("\u5DF2\u79FB\u81F3\u56DE\u6536\u7AD9");
+      }
+    } catch (err) {
+      new import_obsidian3.Notice(`\u5220\u9664\u5931\u8D25: ${String(err)}`);
     }
     setDeleteTarget(null);
   };
-  return /* @__PURE__ */ u3("div", { class: "mh-tab-page mh-memo-page", children: [
-    !loading && items.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
-      /* @__PURE__ */ u3(ObsidianIcon, { name: "sticky-note", size: 40, className: "mh-empty-icon" }),
-      /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: "\u6682\u65E0\u5907\u5FD8\u5F55" }),
-      /* @__PURE__ */ u3("div", { class: "mh-empty-sub", children: "\u70B9\u51FB\u53F3\u4E0B\u89D2 + \u8BB0\u5F55\u7B2C\u4E00\u6761\u7075\u611F" })
-    ] }) : /* @__PURE__ */ u3("div", { class: "mh-memo-list", children: items.map((item) => /* @__PURE__ */ u3(
-      "article",
-      {
-        class: "mh-memo-card",
-        onClick: () => handleOpen(item.path),
-        children: [
-          /* @__PURE__ */ u3("div", { class: "mh-memo-preview", children: item.preview }),
-          /* @__PURE__ */ u3("div", { class: "mh-memo-footer", children: [
-            /* @__PURE__ */ u3("span", { class: "mh-memo-time", children: item.timeText }),
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: "mh-icon-btn mh-more-btn",
-                "aria-label": "\u66F4\u591A\u64CD\u4F5C",
-                onClick: (e3) => {
-                  e3.stopPropagation();
-                  setMenuItem(item);
-                },
-                children: /* @__PURE__ */ u3(ObsidianIcon, { name: "more-horizontal", size: 18 })
-              }
-            )
-          ] })
-        ]
+  return /* @__PURE__ */ u3(
+    "div",
+    {
+      ref: pageRef,
+      class: "mh-tab-page mh-memo-page",
+      onScroll: (e3) => {
+        hubState.memoScrollTop = e3.currentTarget.scrollTop;
       },
-      item.path
-    )) }),
-    /* @__PURE__ */ u3(
-      "button",
-      {
-        type: "button",
-        class: "mh-fab",
-        "aria-label": "\u65B0\u5EFA\u5907\u5FD8\u5F55",
-        onClick: handleCreateMemo,
-        children: /* @__PURE__ */ u3(ObsidianIcon, { name: "plus", size: 24 })
-      }
-    ),
-    /* @__PURE__ */ u3(
-      BottomSheet,
-      {
-        open: menuItem !== null,
-        onClose: () => setMenuItem(null),
-        showCancel: true,
-        children: menuItem && /* @__PURE__ */ u3("div", { class: "mh-row-sheet-content", children: [
-          /* @__PURE__ */ u3("div", { class: "mh-quick-grid", children: /* @__PURE__ */ u3(
-            "button",
+      children: [
+        !loading && items.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
+          /* @__PURE__ */ u3(ObsidianIcon, { name: "sticky-note", size: 40, className: "mh-empty-icon" }),
+          /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: "\u6682\u65E0\u5907\u5FD8\u5F55" }),
+          /* @__PURE__ */ u3("div", { class: "mh-empty-sub", children: "\u70B9\u51FB\u4E0B\u65B9 + \u8BB0\u5F55\u7B2C\u4E00\u6761\u7075\u611F" })
+        ] }) : /* @__PURE__ */ u3("div", { class: "mh-memo-list", children: [
+          items.map((item) => /* @__PURE__ */ u3(
+            "article",
             {
-              type: "button",
-              class: "mh-quick-tile",
-              onClick: () => {
-                const target = menuItem;
-                setMenuItem(null);
-                handleOpen(target.path);
-              },
+              class: "mh-memo-card",
+              onClick: () => handleOpen(item.path),
               children: [
-                /* @__PURE__ */ u3(ObsidianIcon, { name: "pencil", size: 22 }),
-                /* @__PURE__ */ u3("span", { children: "\u7F16\u8F91" })
+                /* @__PURE__ */ u3("div", { class: "mh-memo-preview", children: item.preview }),
+                /* @__PURE__ */ u3("div", { class: "mh-memo-footer", children: [
+                  /* @__PURE__ */ u3("span", { class: "mh-memo-time", children: item.timeText }),
+                  /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      type: "button",
+                      class: "mh-icon-btn mh-more-btn",
+                      "aria-label": "\u66F4\u591A\u64CD\u4F5C",
+                      onClick: (e3) => {
+                        e3.stopPropagation();
+                        setMenuItem(item);
+                      },
+                      children: /* @__PURE__ */ u3(ObsidianIcon, { name: "more-horizontal", size: 18 })
+                    }
+                  )
+                ] })
               ]
-            }
-          ) }),
-          /* @__PURE__ */ u3("div", { class: "mh-action-list", children: [
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: "mh-action-item",
-                onClick: () => {
-                  const target = menuItem;
-                  setMenuItem(null);
-                  setRenameTarget(target);
-                },
-                children: [
-                  /* @__PURE__ */ u3("span", { children: "\u91CD\u547D\u540D" }),
-                  /* @__PURE__ */ u3(ObsidianIcon, { name: "edit-3", size: 18 })
-                ]
-              }
-            ),
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: "mh-action-item is-danger",
-                onClick: () => {
-                  const target = menuItem;
-                  setMenuItem(null);
-                  setDeleteTarget(target);
-                },
-                children: [
-                  /* @__PURE__ */ u3("span", { children: "\u5220\u9664" }),
-                  /* @__PURE__ */ u3(ObsidianIcon, { name: "trash-2", size: 18 })
-                ]
-              }
-            )
-          ] })
-        ] })
-      }
-    ),
-    /* @__PURE__ */ u3(
-      PromptModal,
-      {
-        open: renameTarget !== null,
-        title: "\u91CD\u547D\u540D\u5907\u5FD8\u5F55",
-        initialValue: renameTarget?.basename ?? "",
-        placeholder: "\u8F93\u5165\u65B0\u540D\u79F0",
-        onCancel: () => setRenameTarget(null),
-        onConfirm: handleRename
-      }
-    ),
-    /* @__PURE__ */ u3(
-      PromptModal,
-      {
-        open: deleteTarget !== null,
-        title: "\u5220\u9664\u5907\u5FD8\u5F55",
-        message: `\u786E\u5B9A\u5C06\u300C${deleteTarget?.basename ?? ""}\u300D\u79FB\u81F3\u56DE\u6536\u7AD9\u5417\uFF1F`,
-        confirmText: "\u5220\u9664",
-        danger: true,
-        confirmOnly: true,
-        onCancel: () => setDeleteTarget(null),
-        onConfirm: handleDelete
-      }
-    )
-  ] });
+            },
+            item.path
+          )),
+          visibleCount < allFiles.length && /* @__PURE__ */ u3("div", { ref: sentinelRef, class: "mh-load-more", children: "\u52A0\u8F7D\u66F4\u591A..." })
+        ] }),
+        /* @__PURE__ */ u3(
+          "button",
+          {
+            type: "button",
+            class: "mh-fab",
+            "aria-label": "\u65B0\u5EFA\u5907\u5FD8\u5F55",
+            onClick: handleCreateMemo,
+            children: /* @__PURE__ */ u3(ObsidianIcon, { name: "plus", size: 24 })
+          }
+        ),
+        /* @__PURE__ */ u3(
+          BottomSheet,
+          {
+            open: menuItem !== null,
+            onClose: () => setMenuItem(null),
+            showCancel: true,
+            children: menuItem && /* @__PURE__ */ u3("div", { class: "mh-row-sheet-content", children: [
+              /* @__PURE__ */ u3("div", { class: "mh-quick-grid", children: /* @__PURE__ */ u3(
+                "button",
+                {
+                  type: "button",
+                  class: "mh-quick-tile",
+                  onClick: () => {
+                    const target = menuItem;
+                    setMenuItem(null);
+                    handleOpen(target.path);
+                  },
+                  children: [
+                    /* @__PURE__ */ u3(ObsidianIcon, { name: "pencil", size: 22 }),
+                    /* @__PURE__ */ u3("span", { children: "\u7F16\u8F91" })
+                  ]
+                }
+              ) }),
+              /* @__PURE__ */ u3("div", { class: "mh-action-list", children: [
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: "mh-action-item",
+                    onClick: () => {
+                      const target = menuItem;
+                      setMenuItem(null);
+                      setRenameTarget(target);
+                    },
+                    children: [
+                      /* @__PURE__ */ u3("span", { children: "\u91CD\u547D\u540D" }),
+                      /* @__PURE__ */ u3(ObsidianIcon, { name: "edit-3", size: 18 })
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: "mh-action-item is-danger",
+                    onClick: () => {
+                      const target = menuItem;
+                      setMenuItem(null);
+                      setDeleteTarget(target);
+                    },
+                    children: [
+                      /* @__PURE__ */ u3("span", { children: "\u5220\u9664" }),
+                      /* @__PURE__ */ u3(ObsidianIcon, { name: "trash-2", size: 18 })
+                    ]
+                  }
+                )
+              ] })
+            ] })
+          }
+        ),
+        /* @__PURE__ */ u3(
+          PromptModal,
+          {
+            open: renameTarget !== null,
+            title: "\u91CD\u547D\u540D\u5907\u5FD8\u5F55",
+            initialValue: renameTarget?.basename ?? "",
+            placeholder: "\u8F93\u5165\u65B0\u540D\u79F0",
+            onCancel: () => setRenameTarget(null),
+            onConfirm: handleRename
+          }
+        ),
+        /* @__PURE__ */ u3(
+          PromptModal,
+          {
+            open: deleteTarget !== null,
+            title: "\u5220\u9664\u5907\u5FD8\u5F55",
+            message: `\u786E\u5B9A\u5C06\u300C${deleteTarget?.basename ?? ""}\u300D\u79FB\u81F3\u56DE\u6536\u7AD9\u5417\uFF1F`,
+            confirmText: "\u5220\u9664",
+            danger: true,
+            confirmOnly: true,
+            onCancel: () => setDeleteTarget(null),
+            onConfirm: handleDelete
+          }
+        )
+      ]
+    }
+  );
 }
 
 // src/tabs/DiaryTab.tsx
@@ -985,6 +1092,8 @@ function CalendarPanel({
   onSelectDate,
   markedDates,
   collapsible = false,
+  initialCollapsed = false,
+  onCollapsedChange,
   weekStartsMonday = true
 }) {
   const initialDate = T2(() => {
@@ -993,12 +1102,28 @@ function CalendarPanel({
   }, []);
   const [viewYear, setViewYear] = d2(initialDate.year);
   const [viewMonth, setViewMonth] = d2(initialDate.month);
-  const [collapsed, setCollapsed] = d2(false);
+  const [collapsed, setCollapsedState] = d2(initialCollapsed);
+  const [transitionKey, setTransitionKey] = d2(0);
   const [pickerOpen, setPickerOpen] = d2(false);
   const [pickerTab, setPickerTab] = d2("month");
   const handlerDragStartY = A2(null);
   const swipeStart = A2(null);
+  const activeYearBtnRef = A2(null);
   const todayKey = formatDateKey(/* @__PURE__ */ new Date());
+  const setCollapsed = (next) => {
+    setCollapsedState((prev) => {
+      const resolved = typeof next === "function" ? next(prev) : next;
+      onCollapsedChange?.(resolved);
+      return resolved;
+    });
+  };
+  h2(() => {
+    if (pickerOpen && pickerTab === "year") {
+      requestAnimationFrame(() => {
+        activeYearBtnRef.current?.scrollIntoView({ block: "center" });
+      });
+    }
+  }, [pickerOpen, pickerTab]);
   const yearOptions = T2(() => {
     const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
     const list = [];
@@ -1045,6 +1170,7 @@ function CalendarPanel({
   }, [weeks, selectedDate]);
   const visibleWeeks = collapsed ? [weeks[activeWeekIndex]] : weeks;
   const shiftPeriod = (delta) => {
+    setTransitionKey((k3) => k3 + 1);
     if (collapsed) {
       const [y3, m3, d3] = selectedDate.split("-").map(Number);
       const next2 = new Date(y3, m3 - 1, d3 + delta * 7);
@@ -1062,6 +1188,7 @@ function CalendarPanel({
     setViewYear(now.getFullYear());
     setViewMonth(now.getMonth());
     onSelectDate(formatDateKey(now));
+    setTransitionKey((k3) => k3 + 1);
     setPickerOpen(false);
   };
   const handleSwipeStart = (clientX, clientY) => {
@@ -1090,9 +1217,9 @@ function CalendarPanel({
     e3.stopPropagation();
     const dy = e3.clientY - handlerDragStartY.current;
     handlerDragStartY.current = null;
-    if (dy < -24) {
+    if (dy < -20) {
       setCollapsed(true);
-    } else if (dy > 24) {
+    } else if (dy > 20) {
       setCollapsed(false);
     } else {
       setCollapsed((prev) => !prev);
@@ -1142,7 +1269,7 @@ function CalendarPanel({
           }
         ) }),
         /* @__PURE__ */ u3("div", { class: "mh-cal-weekdays", children: weekHeaders.map((w3) => /* @__PURE__ */ u3("div", { class: "mh-cal-weekday", children: w3 }, w3)) }),
-        /* @__PURE__ */ u3("div", { class: "mh-cal-grid", children: visibleWeeks.map((row, rIdx) => /* @__PURE__ */ u3("div", { class: "mh-cal-row", children: row.map((cell) => {
+        /* @__PURE__ */ u3("div", { class: "mh-cal-grid mh-cal-grid-animate", children: visibleWeeks.map((row, rIdx) => /* @__PURE__ */ u3("div", { class: "mh-cal-row", children: row.map((cell) => {
           const isSelected = cell.dateKey === selectedDate;
           const hasMark = markedDates.has(cell.dateKey);
           return /* @__PURE__ */ u3(
@@ -1170,7 +1297,7 @@ function CalendarPanel({
             },
             cell.dateKey
           );
-        }) }, rIdx)) }),
+        }) }, rIdx)) }, transitionKey),
         collapsible && /* @__PURE__ */ u3(
           "div",
           {
@@ -1235,6 +1362,7 @@ function CalendarPanel({
                     class: `mh-ym-month-cell ${active ? "is-active" : ""}`,
                     onClick: () => {
                       setViewMonth(m3 - 1);
+                      setTransitionKey((k3) => k3 + 1);
                       setPickerOpen(false);
                     },
                     children: [
@@ -1249,6 +1377,7 @@ function CalendarPanel({
                 return /* @__PURE__ */ u3(
                   "button",
                   {
+                    ref: active ? activeYearBtnRef : void 0,
                     type: "button",
                     class: `mh-ym-year-item ${active ? "is-active" : ""}`,
                     onClick: () => {
@@ -1269,59 +1398,77 @@ function CalendarPanel({
 }
 
 // src/tabs/DiaryTab.tsx
-function DiaryTab({ app, settings, refreshTick }) {
-  const [selectedDate, setSelectedDate] = d2(
-    () => formatDateKey(/* @__PURE__ */ new Date())
+function DiaryTab({ app, settings, hubState, refreshTick }) {
+  const [selectedDate, setSelectedDateState] = d2(
+    () => hubState.diarySelectedDate
   );
-  const [allDiaries, setAllDiaries] = d2([]);
+  const [dayDiaries, setDayDiaries] = d2([]);
   const [loading, setLoading] = d2(true);
   const [menuDiary, setMenuDiary] = d2(null);
   const [deleteTarget, setDeleteTarget] = d2(null);
+  const [lightbox, setLightbox] = d2(
+    null
+  );
+  const bodyRef = A2(null);
   const longPressTimer = A2(null);
   const longPressTriggered = A2(false);
   const pressStart = A2(null);
-  h2(() => {
-    let cancelled = false;
-    const load = async () => {
-      const files = getMarkdownFilesInFolder(app, settings.diaryFolder);
-      const loaded = await Promise.all(
-        files.map(async (f4) => {
-          const raw = await app.vault.cachedRead(f4);
-          const { dateKey, timeText, sortKey } = resolveDiaryDateTime(app, f4);
-          const preview = cleanMarkdownPreview(raw, 6);
-          const images = extractImagesFromContent(app, raw, f4.path, 3);
-          return {
-            path: f4.path,
-            basename: f4.basename,
-            dateKey,
-            timeText,
-            sortKey,
-            preview,
-            images
-          };
-        })
-      );
-      loaded.sort((a3, b2) => a3.sortKey - b2.sortKey);
-      if (!cancelled) {
-        setAllDiaries(loaded);
-        setLoading(false);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
+  const setSelectedDate = (dateKey) => {
+    setSelectedDateState(dateKey);
+    hubState.diarySelectedDate = dateKey;
+  };
+  const allMetas = T2(() => {
+    const files = getMarkdownFilesInFolder(app, settings.diaryFolder);
+    const list = files.map((file) => {
+      const { dateKey, timeText, sortKey } = resolveDiaryDateTime(app, file);
+      return { file, dateKey, timeText, sortKey };
+    });
+    list.sort((a3, b2) => a3.sortKey - b2.sortKey);
+    return list;
   }, [app, settings.diaryFolder, refreshTick]);
   const markedDates = T2(() => {
     const set = /* @__PURE__ */ new Set();
-    for (const d3 of allDiaries) {
-      set.add(d3.dateKey);
+    for (const m3 of allMetas) {
+      set.add(m3.dateKey);
     }
     return set;
-  }, [allDiaries]);
-  const dayDiaries = T2(() => {
-    return allDiaries.filter((d3) => d3.dateKey === selectedDate);
-  }, [allDiaries, selectedDate]);
+  }, [allMetas]);
+  h2(() => {
+    let cancelled = false;
+    const loadDay = async () => {
+      const metas = allMetas.filter((m3) => m3.dateKey === selectedDate);
+      const loaded = await Promise.all(
+        metas.map(async (m3) => {
+          const raw = await app.vault.cachedRead(m3.file);
+          const preview = cleanMarkdownPreview(raw, 6);
+          const allImages = extractImagesFromContent(app, raw, m3.file.path, 20);
+          return {
+            path: m3.file.path,
+            basename: m3.file.basename,
+            dateKey: m3.dateKey,
+            timeText: m3.timeText,
+            sortKey: m3.sortKey,
+            preview,
+            images: allImages.slice(0, 3),
+            allImages
+          };
+        })
+      );
+      if (!cancelled) {
+        setDayDiaries(loaded);
+        setLoading(false);
+      }
+    };
+    loadDay();
+    return () => {
+      cancelled = true;
+    };
+  }, [app, allMetas, selectedDate]);
+  h2(() => {
+    if (!loading && bodyRef.current && hubState.diaryScrollTop > 0) {
+      bodyRef.current.scrollTop = hubState.diaryScrollTop;
+    }
+  }, [loading]);
   const handleOpen = async (path) => {
     const file = app.vault.getAbstractFileByPath(path);
     if (file instanceof import_obsidian6.TFile) {
@@ -1350,8 +1497,13 @@ date: ${selectedDate} ${hh}:${mm}
   const handleDeleteDiary = async () => {
     if (!deleteTarget) return;
     const file = app.vault.getAbstractFileByPath(deleteTarget.path);
-    if (file instanceof import_obsidian6.TFile) {
-      await app.vault.trash(file, true);
+    try {
+      if (file instanceof import_obsidian6.TFile) {
+        await app.vault.trash(file, true);
+        new import_obsidian6.Notice("\u5DF2\u79FB\u81F3\u56DE\u6536\u7AD9");
+      }
+    } catch (err) {
+      new import_obsidian6.Notice(`\u5220\u9664\u5931\u8D25: ${String(err)}`);
     }
     setDeleteTarget(null);
   };
@@ -1393,58 +1545,96 @@ date: ${selectedDate} ${hh}:${mm}
         onSelectDate: setSelectedDate,
         markedDates,
         collapsible: true,
-        weekStartsMonday: true
+        initialCollapsed: hubState.diaryCollapsed,
+        onCollapsedChange: (c3) => {
+          hubState.diaryCollapsed = c3;
+        },
+        weekStartsMonday: settings.weekStartsMonday
       }
     ) }),
-    /* @__PURE__ */ u3("div", { class: "mh-diary-body", children: !loading && dayDiaries.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
-      /* @__PURE__ */ u3(ObsidianIcon, { name: "inbox", size: 44, className: "mh-empty-icon" }),
-      /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: "\u6682\u65E0\u65E5\u8BB0" })
-    ] }) : /* @__PURE__ */ u3("div", { class: "mh-timeline", children: dayDiaries.map((entry) => /* @__PURE__ */ u3("div", { class: "mh-timeline-item", children: [
-      /* @__PURE__ */ u3("div", { class: "mh-timeline-rail", children: [
-        /* @__PURE__ */ u3("span", { class: "mh-timeline-dot" }),
-        /* @__PURE__ */ u3("span", { class: "mh-timeline-line" })
-      ] }),
-      /* @__PURE__ */ u3("div", { class: "mh-timeline-content", children: [
-        /* @__PURE__ */ u3("div", { class: "mh-timeline-header", children: [
-          /* @__PURE__ */ u3("span", { class: "mh-timeline-time", children: entry.timeText }),
-          /* @__PURE__ */ u3("span", { class: "mh-timeline-sub", children: entry.basename })
-        ] }),
-        /* @__PURE__ */ u3(
-          "article",
-          {
-            class: "mh-diary-card",
-            onPointerDown: (e3) => handleCardPointerDown(entry, e3),
-            onPointerMove: handleCardPointerMove,
-            onPointerUp: handleCardPointerUp,
-            onPointerCancel: handleCardPointerUp,
-            onContextMenu: (e3) => {
-              e3.preventDefault();
-              setMenuDiary(entry);
-            },
-            onClick: () => {
-              if (longPressTriggered.current) {
-                longPressTriggered.current = false;
-                return;
-              }
-              handleOpen(entry.path);
-            },
-            children: [
-              entry.images.length > 0 && /* @__PURE__ */ u3("div", { class: "mh-diary-images", children: entry.images.map((src, i4) => /* @__PURE__ */ u3(
-                "img",
+    /* @__PURE__ */ u3(
+      "div",
+      {
+        ref: bodyRef,
+        class: "mh-diary-body",
+        onScroll: (e3) => {
+          hubState.diaryScrollTop = e3.currentTarget.scrollTop;
+        },
+        children: !loading && dayDiaries.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
+          /* @__PURE__ */ u3(ObsidianIcon, { name: "inbox", size: 44, className: "mh-empty-icon" }),
+          /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: "\u6682\u65E0\u65E5\u8BB0" })
+        ] }) : /* @__PURE__ */ u3("div", { class: "mh-timeline", children: dayDiaries.map((entry) => {
+          const extraImages = Math.max(0, entry.allImages.length - 3);
+          return /* @__PURE__ */ u3("div", { class: "mh-timeline-item", children: [
+            /* @__PURE__ */ u3("div", { class: "mh-timeline-rail", children: [
+              /* @__PURE__ */ u3("span", { class: "mh-timeline-dot" }),
+              /* @__PURE__ */ u3("span", { class: "mh-timeline-line" })
+            ] }),
+            /* @__PURE__ */ u3("div", { class: "mh-timeline-content", children: [
+              /* @__PURE__ */ u3("div", { class: "mh-timeline-header", children: [
+                /* @__PURE__ */ u3("span", { class: "mh-timeline-time", children: entry.timeText }),
+                /* @__PURE__ */ u3("span", { class: "mh-timeline-sub", children: entry.basename })
+              ] }),
+              /* @__PURE__ */ u3(
+                "article",
                 {
-                  src,
-                  class: "mh-diary-thumb",
-                  loading: "lazy",
-                  alt: ""
-                },
-                i4
-              )) }),
-              entry.preview ? /* @__PURE__ */ u3("div", { class: "mh-diary-text", children: entry.preview }) : entry.images.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-diary-text is-muted", children: "\uFF08\u7A7A\u767D\u65E5\u8BB0\uFF09" }) : null
-            ]
-          }
-        )
-      ] })
-    ] }, entry.path)) }) }),
+                  class: "mh-diary-card",
+                  onPointerDown: (e3) => handleCardPointerDown(entry, e3),
+                  onPointerMove: handleCardPointerMove,
+                  onPointerUp: handleCardPointerUp,
+                  onPointerCancel: handleCardPointerUp,
+                  onContextMenu: (e3) => {
+                    e3.preventDefault();
+                    setMenuDiary(entry);
+                  },
+                  onClick: () => {
+                    if (longPressTriggered.current) {
+                      longPressTriggered.current = false;
+                      return;
+                    }
+                    handleOpen(entry.path);
+                  },
+                  children: [
+                    entry.images.length > 0 && /* @__PURE__ */ u3("div", { class: "mh-diary-images", children: entry.images.map((src, i4) => /* @__PURE__ */ u3(
+                      "div",
+                      {
+                        class: "mh-diary-thumb-wrap",
+                        onClick: (e3) => {
+                          e3.stopPropagation();
+                          if (longPressTriggered.current) {
+                            longPressTriggered.current = false;
+                            return;
+                          }
+                          setLightbox({ images: entry.allImages, index: i4 });
+                        },
+                        children: [
+                          /* @__PURE__ */ u3(
+                            "img",
+                            {
+                              src,
+                              class: "mh-diary-thumb",
+                              loading: "lazy",
+                              draggable: false,
+                              alt: ""
+                            }
+                          ),
+                          i4 === 2 && extraImages > 0 && /* @__PURE__ */ u3("span", { class: "mh-diary-thumb-more", children: [
+                            "+",
+                            extraImages
+                          ] })
+                        ]
+                      },
+                      i4
+                    )) }),
+                    entry.preview ? /* @__PURE__ */ u3("div", { class: "mh-diary-text", children: entry.preview }) : entry.images.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-diary-text is-muted", children: "\uFF08\u7A7A\u767D\u65E5\u8BB0\uFF09" }) : null
+                  ]
+                }
+              )
+            ] })
+          ] }, entry.path);
+        }) })
+      }
+    ),
     /* @__PURE__ */ u3(
       "button",
       {
@@ -1453,6 +1643,68 @@ date: ${selectedDate} ${hh}:${mm}
         "aria-label": "\u5199\u65E5\u8BB0",
         onClick: handleCreateDiary,
         children: /* @__PURE__ */ u3(ObsidianIcon, { name: "pencil", size: 22 })
+      }
+    ),
+    lightbox && /* @__PURE__ */ u3(
+      "div",
+      {
+        class: "mh-lightbox-backdrop",
+        onClick: () => setLightbox(null),
+        children: [
+          /* @__PURE__ */ u3(
+            "img",
+            {
+              src: lightbox.images[lightbox.index],
+              class: "mh-lightbox-img",
+              alt: "",
+              onClick: (e3) => e3.stopPropagation()
+            }
+          ),
+          lightbox.images.length > 1 && /* @__PURE__ */ u3(
+            "div",
+            {
+              class: "mh-lightbox-controls",
+              onClick: (e3) => e3.stopPropagation(),
+              children: [
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: "mh-lightbox-nav",
+                    "aria-label": "\u4E0A\u4E00\u5F20",
+                    onClick: () => setLightbox(
+                      (prev) => prev ? {
+                        ...prev,
+                        index: (prev.index - 1 + prev.images.length) % prev.images.length
+                      } : null
+                    ),
+                    children: /* @__PURE__ */ u3(ObsidianIcon, { name: "chevron-left", size: 22 })
+                  }
+                ),
+                /* @__PURE__ */ u3("span", { class: "mh-lightbox-counter", children: [
+                  lightbox.index + 1,
+                  " / ",
+                  lightbox.images.length
+                ] }),
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: "mh-lightbox-nav",
+                    "aria-label": "\u4E0B\u4E00\u5F20",
+                    onClick: () => setLightbox(
+                      (prev) => prev ? {
+                        ...prev,
+                        index: (prev.index + 1) % prev.images.length
+                      } : null
+                    ),
+                    children: /* @__PURE__ */ u3(ObsidianIcon, { name: "chevron-right", size: 22 })
+                  }
+                )
+              ]
+            }
+          )
+        ]
       }
     ),
     /* @__PURE__ */ u3(
@@ -1531,49 +1783,104 @@ function formatFriendlyDate(dateKey) {
   }
   return dateKey;
 }
-function TaskTab({ app, settings, refreshTick }) {
-  const [selectedDate, setSelectedDate] = d2(
-    () => formatDateKey(/* @__PURE__ */ new Date())
+function addDays(base, days) {
+  const d3 = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days);
+  return formatDateKey(d3);
+}
+function sortTasks(list) {
+  return [...list].sort((a3, b2) => {
+    if (a3.done !== b2.done) return a3.done ? 1 : -1;
+    const pDiff = PRIORITY_ORDER.indexOf(b2.priority) - PRIORITY_ORDER.indexOf(a3.priority);
+    if (pDiff !== 0) return pDiff;
+    return b2.mtime - a3.mtime;
+  });
+}
+function TaskTab({ app, settings, hubState, refreshTick }) {
+  const [selectedDate, setSelectedDateState] = d2(
+    () => hubState.taskSelectedDate
   );
-  const [tasks, setTasks] = d2([]);
+  const [overdueOpen, setOverdueOpenState] = d2(
+    () => hubState.taskOverdueOpen
+  );
+  const [noDateOpen, setNoDateOpen] = d2(false);
+  const [dayTasks, setDayTasks] = d2([]);
+  const [overdueTasks, setOverdueTasks] = d2([]);
+  const [noDateTasks, setNoDateTasks] = d2([]);
   const [loading, setLoading] = d2(true);
   const [activeTask, setActiveTask] = d2(null);
+  const [datePickerOpen, setDatePickerOpen] = d2(false);
   const [createOpen, setCreateOpen] = d2(false);
   const [deleteTarget, setDeleteTarget] = d2(null);
+  const bodyRef = A2(null);
+  const todayKey = formatDateKey(/* @__PURE__ */ new Date());
+  const setSelectedDate = (dateKey) => {
+    setSelectedDateState(dateKey);
+    hubState.taskSelectedDate = dateKey;
+  };
+  const setOverdueOpen = (next) => {
+    setOverdueOpenState(next);
+    hubState.taskOverdueOpen = next;
+  };
+  const allMetas = T2(() => {
+    const files = getMarkdownFilesInFolder(app, settings.taskFolder);
+    return files.map((file) => {
+      const { due, done, priority } = parseTaskFrontmatter(app, file);
+      const parentName = file.parent?.name || settings.taskFolder;
+      return {
+        file,
+        due,
+        done,
+        priority,
+        folderLabel: parentName
+      };
+    });
+  }, [app, settings.taskFolder, refreshTick]);
+  const markedDates = T2(() => {
+    const set = /* @__PURE__ */ new Set();
+    for (const m3 of allMetas) {
+      if (m3.due) set.add(m3.due);
+    }
+    return set;
+  }, [allMetas]);
   h2(() => {
     let cancelled = false;
-    const load = async () => {
-      const files = getMarkdownFilesInFolder(app, settings.taskFolder);
-      const loaded = await Promise.all(
-        files.map(async (f4) => {
-          const raw = await app.vault.cachedRead(f4);
-          const { due, done, priority } = parseTaskFrontmatter(app, f4);
-          const fallbackDue = due || formatDateKey(new Date(f4.stat.ctime));
-          const preview = cleanMarkdownPreview(raw, 6);
-          const parentName = f4.parent?.name || settings.taskFolder;
+    const hydrate = async (metas) => {
+      const items = await Promise.all(
+        metas.map(async (m3) => {
+          const raw = await app.vault.cachedRead(m3.file);
           return {
-            path: f4.path,
-            basename: f4.basename,
-            due: fallbackDue,
-            done,
-            priority,
-            preview,
-            folderLabel: parentName === settings.taskFolder ? "\u6536\u96C6\u7BB1" : parentName,
-            mtime: f4.stat.mtime
+            path: m3.file.path,
+            basename: m3.file.basename,
+            due: m3.due,
+            done: m3.done,
+            priority: m3.priority,
+            preview: cleanMarkdownPreview(raw, 6),
+            folderLabel: m3.folderLabel,
+            mtime: m3.file.stat.mtime
           };
         })
       );
-      loaded.sort((a3, b2) => {
-        if (a3.done !== b2.done) return a3.done ? 1 : -1;
-        const pDiff = PRIORITY_ORDER.indexOf(b2.priority) - PRIORITY_ORDER.indexOf(a3.priority);
-        if (pDiff !== 0) return pDiff;
-        return b2.mtime - a3.mtime;
-      });
+      return sortTasks(items);
+    };
+    const load = async () => {
+      const dayMetas = allMetas.filter((m3) => m3.due === selectedDate);
+      const overdueMetas = allMetas.filter(
+        (m3) => m3.due !== "" && m3.due < todayKey && !m3.done && m3.due !== selectedDate
+      );
+      const undatedMetas = allMetas.filter((m3) => m3.due === "" && !m3.done);
+      const [dayRes, overdueRes, undatedRes] = await Promise.all([
+        hydrate(dayMetas),
+        hydrate(overdueMetas),
+        hydrate(undatedMetas)
+      ]);
       if (!cancelled) {
-        setTasks(loaded);
+        setDayTasks(dayRes);
+        setOverdueTasks(overdueRes);
+        setNoDateTasks(undatedRes);
         setLoading(false);
+        const combined = [...dayRes, ...overdueRes, ...undatedRes];
         setActiveTask(
-          (prev) => prev ? loaded.find((t3) => t3.path === prev.path) ?? null : null
+          (prev) => prev ? combined.find((t3) => t3.path === prev.path) ?? null : null
         );
       }
     };
@@ -1581,28 +1888,25 @@ function TaskTab({ app, settings, refreshTick }) {
     return () => {
       cancelled = true;
     };
-  }, [app, settings.taskFolder, refreshTick]);
-  const markedDates = T2(() => {
-    const set = /* @__PURE__ */ new Set();
-    for (const t3 of tasks) {
-      if (t3.due) set.add(t3.due);
+  }, [app, allMetas, selectedDate, todayKey]);
+  h2(() => {
+    if (!loading && bodyRef.current && hubState.taskScrollTop > 0) {
+      bodyRef.current.scrollTop = hubState.taskScrollTop;
     }
-    return set;
-  }, [tasks]);
-  const dayTasks = T2(() => {
-    return tasks.filter((t3) => t3.due === selectedDate);
-  }, [tasks, selectedDate]);
+  }, [loading]);
+  const patchTaskInLists = (path, patch) => {
+    const apply = (arr) => arr.map((t3) => t3.path === path ? { ...t3, ...patch } : t3);
+    setDayTasks(apply);
+    setOverdueTasks(apply);
+    setNoDateTasks(apply);
+    setActiveTask((prev) => prev && prev.path === path ? { ...prev, ...patch } : prev);
+  };
   const handleToggleDone = async (task, e3) => {
     e3?.stopPropagation();
     const file = app.vault.getAbstractFileByPath(task.path);
     if (!(file instanceof import_obsidian8.TFile)) return;
     const nextDone = !task.done;
-    setTasks(
-      (prev) => prev.map((t3) => t3.path === task.path ? { ...t3, done: nextDone } : t3)
-    );
-    if (activeTask?.path === task.path) {
-      setActiveTask({ ...task, done: nextDone });
-    }
+    patchTaskInLists(task.path, { done: nextDone });
     await updateTaskFrontmatter(app, file, { done: nextDone });
   };
   const handleCyclePriority = async (task) => {
@@ -1610,21 +1914,15 @@ function TaskTab({ app, settings, refreshTick }) {
     if (!(file instanceof import_obsidian8.TFile)) return;
     const nextIdx = (PRIORITY_ORDER.indexOf(task.priority) + 1) % PRIORITY_ORDER.length;
     const nextPriority = PRIORITY_ORDER[nextIdx];
-    setActiveTask({ ...task, priority: nextPriority });
-    setTasks(
-      (prev) => prev.map((t3) => t3.path === task.path ? { ...t3, priority: nextPriority } : t3)
-    );
+    patchTaskInLists(task.path, { priority: nextPriority });
     await updateTaskFrontmatter(app, file, { priority: nextPriority });
   };
   const handleChangeDue = async (task, newDue) => {
-    if (!newDue) return;
     const file = app.vault.getAbstractFileByPath(task.path);
     if (!(file instanceof import_obsidian8.TFile)) return;
-    setActiveTask({ ...task, due: newDue });
-    setTasks(
-      (prev) => prev.map((t3) => t3.path === task.path ? { ...t3, due: newDue } : t3)
-    );
+    patchTaskInLists(task.path, { due: newDue });
     await updateTaskFrontmatter(app, file, { due: newDue });
+    setDatePickerOpen(false);
   };
   const handleOpenInNativeEditor = async (task) => {
     const file = app.vault.getAbstractFileByPath(task.path);
@@ -1654,13 +1952,43 @@ priority: medium
   const handleDeleteTask = async () => {
     if (!deleteTarget) return;
     const file = app.vault.getAbstractFileByPath(deleteTarget.path);
-    if (file instanceof import_obsidian8.TFile) {
-      await app.vault.trash(file, true);
+    try {
+      if (file instanceof import_obsidian8.TFile) {
+        await app.vault.trash(file, true);
+        new import_obsidian8.Notice("\u5DF2\u79FB\u81F3\u56DE\u6536\u7AD9");
+      }
+    } catch (err) {
+      new import_obsidian8.Notice(`\u5220\u9664\u5931\u8D25: ${String(err)}`);
     }
     setDeleteTarget(null);
     setActiveTask(null);
   };
+  const renderTaskRow = (task, isOverdue = false) => /* @__PURE__ */ u3(
+    "div",
+    {
+      class: `mh-task-row ${task.done ? "is-done" : ""}`,
+      onClick: () => setActiveTask(task),
+      children: [
+        /* @__PURE__ */ u3(
+          "button",
+          {
+            type: "button",
+            class: `mh-checkbox ${task.done ? "is-checked" : ""}`,
+            "aria-label": task.done ? "\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210" : "\u6807\u8BB0\u4E3A\u5DF2\u5B8C\u6210",
+            onClick: (e3) => handleToggleDone(task, e3),
+            children: task.done && /* @__PURE__ */ u3(ObsidianIcon, { name: "check", size: 13 })
+          }
+        ),
+        /* @__PURE__ */ u3("div", { class: "mh-task-main", children: [
+          /* @__PURE__ */ u3("div", { class: "mh-task-title", children: task.basename }),
+          /* @__PURE__ */ u3("div", { class: "mh-task-meta", children: /* @__PURE__ */ u3("span", { class: `mh-task-due ${isOverdue ? "is-overdue" : ""}`, children: formatFriendlyDate(task.due) }) })
+        ] })
+      ]
+    },
+    task.path
+  );
   const friendlySelected = formatFriendlyDate(selectedDate);
+  const hasAnyVisible = dayTasks.length > 0 || overdueTasks.length > 0 || noDateTasks.length > 0;
   return /* @__PURE__ */ u3("div", { class: "mh-tab-page mh-task-page", children: [
     /* @__PURE__ */ u3("div", { class: "mh-calendar-sticky", children: /* @__PURE__ */ u3(
       CalendarPanel,
@@ -1668,43 +1996,89 @@ priority: medium
         selectedDate,
         onSelectDate: setSelectedDate,
         markedDates,
-        collapsible: false,
-        weekStartsMonday: false
+        collapsible: true,
+        initialCollapsed: hubState.taskCollapsed,
+        onCollapsedChange: (c3) => {
+          hubState.taskCollapsed = c3;
+        },
+        weekStartsMonday: settings.weekStartsMonday
       }
     ) }),
-    /* @__PURE__ */ u3("div", { class: "mh-task-body", children: !loading && dayTasks.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
-      /* @__PURE__ */ u3(ObsidianIcon, { name: "check-circle-2", size: 40, className: "mh-empty-icon" }),
-      /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: [
-        friendlySelected,
-        "\u6682\u65E0\u4EFB\u52A1"
-      ] })
-    ] }) : /* @__PURE__ */ u3("div", { class: "mh-task-group-card", children: [
-      /* @__PURE__ */ u3("div", { class: "mh-task-group-header", children: friendlySelected }),
-      /* @__PURE__ */ u3("div", { class: "mh-task-list", children: dayTasks.map((task) => /* @__PURE__ */ u3(
-        "div",
-        {
-          class: `mh-task-row ${task.done ? "is-done" : ""}`,
-          onClick: () => setActiveTask(task),
-          children: [
+    /* @__PURE__ */ u3(
+      "div",
+      {
+        ref: bodyRef,
+        class: "mh-task-body",
+        onScroll: (e3) => {
+          hubState.taskScrollTop = e3.currentTarget.scrollTop;
+        },
+        children: !loading && !hasAnyVisible ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
+          /* @__PURE__ */ u3(ObsidianIcon, { name: "check-circle-2", size: 40, className: "mh-empty-icon" }),
+          /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: [
+            friendlySelected,
+            "\u6682\u65E0\u4EFB\u52A1"
+          ] })
+        ] }) : /* @__PURE__ */ u3("div", { class: "mh-task-groups", children: [
+          overdueTasks.length > 0 && /* @__PURE__ */ u3("div", { class: "mh-task-group-card", children: [
             /* @__PURE__ */ u3(
               "button",
               {
                 type: "button",
-                class: `mh-checkbox mh-priority-${task.priority} ${task.done ? "is-checked" : ""}`,
-                "aria-label": task.done ? "\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210" : "\u6807\u8BB0\u4E3A\u5DF2\u5B8C\u6210",
-                onClick: (e3) => handleToggleDone(task, e3),
-                children: task.done && /* @__PURE__ */ u3(ObsidianIcon, { name: "check", size: 13 })
+                class: "mh-task-group-toggle is-overdue",
+                onClick: () => setOverdueOpen(!overdueOpen),
+                children: [
+                  /* @__PURE__ */ u3("span", { children: [
+                    "\u5DF2\u8FC7\u671F\uFF08",
+                    overdueTasks.length,
+                    "\uFF09"
+                  ] }),
+                  /* @__PURE__ */ u3(
+                    ObsidianIcon,
+                    {
+                      name: overdueOpen ? "chevron-down" : "chevron-right",
+                      size: 16
+                    }
+                  )
+                ]
               }
             ),
-            /* @__PURE__ */ u3("div", { class: "mh-task-main", children: [
-              /* @__PURE__ */ u3("div", { class: "mh-task-title", children: task.basename }),
-              /* @__PURE__ */ u3("div", { class: "mh-task-meta", children: /* @__PURE__ */ u3("span", { class: "mh-task-due", children: formatFriendlyDate(task.due) }) })
-            ] })
-          ]
-        },
-        task.path
-      )) })
-    ] }) }),
+            overdueOpen && /* @__PURE__ */ u3("div", { class: "mh-task-list", children: overdueTasks.map((t3) => renderTaskRow(t3, true)) })
+          ] }),
+          /* @__PURE__ */ u3("div", { class: "mh-task-group-card", children: [
+            /* @__PURE__ */ u3("div", { class: "mh-task-group-header", children: friendlySelected }),
+            dayTasks.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-task-inline-empty", children: [
+              friendlySelected,
+              "\u6682\u65E0\u4EFB\u52A1"
+            ] }) : /* @__PURE__ */ u3("div", { class: "mh-task-list", children: dayTasks.map((t3) => renderTaskRow(t3)) })
+          ] }),
+          noDateTasks.length > 0 && /* @__PURE__ */ u3("div", { class: "mh-task-group-card", children: [
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-task-group-toggle",
+                onClick: () => setNoDateOpen(!noDateOpen),
+                children: [
+                  /* @__PURE__ */ u3("span", { children: [
+                    "\u65E0\u65E5\u671F\uFF08",
+                    noDateTasks.length,
+                    "\uFF09"
+                  ] }),
+                  /* @__PURE__ */ u3(
+                    ObsidianIcon,
+                    {
+                      name: noDateOpen ? "chevron-down" : "chevron-right",
+                      size: 16
+                    }
+                  )
+                ]
+              }
+            ),
+            noDateOpen && /* @__PURE__ */ u3("div", { class: "mh-task-list", children: noDateTasks.map((t3) => renderTaskRow(t3)) })
+          ] })
+        ] })
+      }
+    ),
     /* @__PURE__ */ u3(
       "button",
       {
@@ -1718,7 +2092,7 @@ priority: medium
     /* @__PURE__ */ u3(
       BottomSheet,
       {
-        open: activeTask !== null,
+        open: activeTask !== null && !datePickerOpen,
         onClose: () => setActiveTask(null),
         children: activeTask && /* @__PURE__ */ u3("div", { class: "mh-task-sheet", children: [
           /* @__PURE__ */ u3("div", { class: "mh-task-sheet-topbar", children: [
@@ -1751,27 +2125,23 @@ priority: medium
               "button",
               {
                 type: "button",
-                class: `mh-checkbox mh-priority-${activeTask.priority} ${activeTask.done ? "is-checked" : ""}`,
+                class: `mh-checkbox ${activeTask.done ? "is-checked" : ""}`,
                 onClick: () => handleToggleDone(activeTask),
                 children: activeTask.done && /* @__PURE__ */ u3(ObsidianIcon, { name: "check", size: 13 })
               }
             ),
-            /* @__PURE__ */ u3("label", { class: "mh-date-picker-label", children: [
-              /* @__PURE__ */ u3("span", { children: [
-                formatFriendlyDate(activeTask.due),
-                "\uFF0C",
-                activeTask.due
-              ] }),
-              /* @__PURE__ */ u3(
-                "input",
-                {
-                  type: "date",
-                  class: "mh-hidden-date-input",
-                  value: activeTask.due,
-                  onChange: (e3) => handleChangeDue(activeTask, e3.target.value)
-                }
-              )
-            ] })
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-date-trigger-btn",
+                onClick: () => setDatePickerOpen(true),
+                children: [
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "calendar", size: 15 }),
+                  /* @__PURE__ */ u3("span", { children: activeTask.due ? `${formatFriendlyDate(activeTask.due)}\uFF0C${activeTask.due}` : "\u8BBE\u7F6E\u65E5\u671F" })
+                ]
+              }
+            )
           ] }),
           /* @__PURE__ */ u3(
             "div",
@@ -1785,6 +2155,76 @@ priority: medium
               ]
             }
           )
+        ] })
+      }
+    ),
+    /* @__PURE__ */ u3(
+      BottomSheet,
+      {
+        open: datePickerOpen && activeTask !== null,
+        onClose: () => setDatePickerOpen(false),
+        showCancel: true,
+        children: activeTask && /* @__PURE__ */ u3("div", { class: "mh-date-picker-sheet", children: [
+          /* @__PURE__ */ u3("div", { class: "mh-quick-grid", children: [
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-quick-tile",
+                onClick: () => handleChangeDue(activeTask, todayKey),
+                children: [
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "sun", size: 20 }),
+                  /* @__PURE__ */ u3("span", { children: "\u4ECA\u5929" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-quick-tile",
+                onClick: () => handleChangeDue(activeTask, addDays(/* @__PURE__ */ new Date(), 1)),
+                children: [
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "sunrise", size: 20 }),
+                  /* @__PURE__ */ u3("span", { children: "\u660E\u5929" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-quick-tile",
+                onClick: () => handleChangeDue(activeTask, addDays(/* @__PURE__ */ new Date(), 7)),
+                children: [
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "calendar-days", size: 20 }),
+                  /* @__PURE__ */ u3("span", { children: "\u4E0B\u5468" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-quick-tile",
+                onClick: () => handleChangeDue(activeTask, ""),
+                children: [
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "x-circle", size: 20 }),
+                  /* @__PURE__ */ u3("span", { children: "\u6E05\u9664\u65E5\u671F" })
+                ]
+              }
+            )
+          ] }),
+          /* @__PURE__ */ u3("div", { class: "mh-date-picker-cal", children: /* @__PURE__ */ u3(
+            CalendarPanel,
+            {
+              selectedDate: activeTask.due || todayKey,
+              onSelectDate: (d3) => handleChangeDue(activeTask, d3),
+              markedDates,
+              collapsible: false,
+              weekStartsMonday: settings.weekStartsMonday
+            }
+          ) })
         ] })
       }
     ),
@@ -1817,46 +2257,74 @@ priority: medium
 
 // src/tabs/KnowledgeTab.tsx
 var import_obsidian10 = require("obsidian");
+var IMAGE_EXTS = /* @__PURE__ */ new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"]);
+function getFileIconName(file) {
+  if (file instanceof import_obsidian10.TFolder) return "folder";
+  if (file instanceof import_obsidian10.TFile) {
+    const ext = file.extension.toLowerCase();
+    if (ext === "md") return "file-text";
+    if (IMAGE_EXTS.has(ext)) return "image";
+  }
+  return "file";
+}
 function KnowledgeTab({
   app,
   settings,
+  hubState,
   refreshTick,
-  initialRootPath,
   onRootPathChange,
-  onUpdateCustomOrder
+  onUpdateCustomOrder,
+  onReplaceCustomOrderMap
 }) {
   const [activeRootPath, setActiveRootPathState] = d2(
-    initialRootPath
+    () => hubState.kbRootPath
   );
-  const setActiveRootPath = (path) => {
-    setActiveRootPathState(path);
-    onRootPathChange(path);
-  };
-  const [expandedPaths, setExpandedPaths] = d2(() => /* @__PURE__ */ new Set());
+  const [expandedPaths, setExpandedPathsState] = d2(
+    () => new Set(hubState.kbExpandedPaths)
+  );
   const [fabSheetOpen, setFabSheetOpen] = d2(false);
   const [rowMenuTarget, setRowMenuTarget] = d2(null);
   const [promptAction, setPromptAction] = d2(null);
   const [dragState, setDragState] = d2(null);
   const longPressTimer = A2(null);
   const dragStartPos = A2(null);
-  const treeContainerRef = A2(null);
+  const justDraggedRef = A2(false);
+  const pointerYRef = A2(0);
+  const autoScrollRafRef = A2(null);
+  const treeListRef = A2(null);
+  const rootListRef = A2(null);
+  const setActiveRootPath = (path) => {
+    setActiveRootPathState(path);
+    onRootPathChange(path);
+  };
+  const setExpandedPaths = (updater) => {
+    setExpandedPathsState((prev) => {
+      const next = updater(prev);
+      hubState.kbExpandedPaths = Array.from(next);
+      return next;
+    });
+  };
   const excludedSet = T2(() => {
-    const s3 = /* @__PURE__ */ new Set([
+    return /* @__PURE__ */ new Set([
       settings.memoFolder,
       settings.diaryFolder,
       settings.taskFolder,
       ...settings.excludedFolders
     ]);
-    return s3;
   }, [settings]);
   const rootItems = T2(() => {
     const root = app.vault.getRoot();
     const folders = root.children.filter(
       (c3) => c3 instanceof import_obsidian10.TFolder && !c3.name.startsWith(".") && !excludedSet.has(c3.name)
     );
-    const sorted = sortChildrenWithCustomOrder(folders, settings.customOrder[""]);
+    const sorted = sortChildrenWithCustomOrder(
+      folders,
+      settings.customOrder[""]
+    );
     return sorted.map((folder) => {
-      const files = getFilesInFolderRecursive(folder).filter((f4) => f4.extension === "md");
+      const files = getFilesInFolderRecursive(folder).filter(
+        (f4) => f4.extension === "md"
+      );
       let latest = 0;
       for (const f4 of files) {
         if (f4.stat.mtime > latest) latest = f4.stat.mtime;
@@ -1880,6 +2348,49 @@ function KnowledgeTab({
       setActiveRootPath(null);
     }
   }, [activeRootPath, activeRootFolder]);
+  h2(() => {
+    const el = activeRootFolder ? treeListRef.current : rootListRef.current;
+    if (el && hubState.kbScrollTop > 0) {
+      el.scrollTop = hubState.kbScrollTop;
+    }
+  }, [activeRootFolder]);
+  h2(() => {
+    if (!dragState) {
+      if (autoScrollRafRef.current !== null) {
+        cancelAnimationFrame(autoScrollRafRef.current);
+        autoScrollRafRef.current = null;
+      }
+      return;
+    }
+    const preventTouchMove = (e3) => {
+      e3.preventDefault();
+    };
+    window.addEventListener("touchmove", preventTouchMove, { passive: false });
+    const tickScroll = () => {
+      const list = treeListRef.current;
+      if (list) {
+        const rect = list.getBoundingClientRect();
+        const y3 = pointerYRef.current;
+        const edge = 64;
+        if (y3 < rect.top + edge) {
+          const factor = Math.max(0.2, (rect.top + edge - y3) / edge);
+          list.scrollTop -= Math.round(10 * factor);
+        } else if (y3 > rect.bottom - edge) {
+          const factor = Math.max(0.2, (y3 - (rect.bottom - edge)) / edge);
+          list.scrollTop += Math.round(10 * factor);
+        }
+      }
+      autoScrollRafRef.current = requestAnimationFrame(tickScroll);
+    };
+    autoScrollRafRef.current = requestAnimationFrame(tickScroll);
+    return () => {
+      window.removeEventListener("touchmove", preventTouchMove);
+      if (autoScrollRafRef.current !== null) {
+        cancelAnimationFrame(autoScrollRafRef.current);
+        autoScrollRafRef.current = null;
+      }
+    };
+  }, [Boolean(dragState)]);
   const treeRows = T2(() => {
     if (!activeRootFolder) return [];
     const rows = [];
@@ -1900,6 +2411,7 @@ function KnowledgeTab({
           name: child.name,
           displayName,
           isFolder,
+          iconName: getFileIconName(child),
           depth,
           expanded
         });
@@ -1918,6 +2430,14 @@ function KnowledgeTab({
       else next.add(folderPath);
       return next;
     });
+  };
+  const handleMoveRootFolder = async (folderName, delta) => {
+    const names = rootItems.map((r3) => r3.name);
+    const idx = names.indexOf(folderName);
+    const targetIdx = idx + delta;
+    if (idx === -1 || targetIdx < 0 || targetIdx >= names.length) return;
+    [names[idx], names[targetIdx]] = [names[targetIdx], names[idx]];
+    await onUpdateCustomOrder("", names);
   };
   const executePrompt = async (value) => {
     if (!promptAction) return;
@@ -1941,14 +2461,39 @@ function KnowledgeTab({
         if (action.parentPath) {
           setExpandedPaths((prev) => new Set(prev).add(action.parentPath));
         }
+        new import_obsidian10.Notice("\u5DF2\u521B\u5EFA\u6587\u4EF6\u5939");
       } else if (action.type === "rename") {
+        const oldPath = action.target.path;
+        const oldName = action.target.name;
         const parentPath = action.target.parent?.path ?? "";
         const ext = action.target instanceof import_obsidian10.TFile && action.target.extension ? `.${action.target.extension}` : "";
         const newName = ext && value.endsWith(ext) ? value : `${value}${ext}`;
         const nextPath = parentPath ? (0, import_obsidian10.normalizePath)(`${parentPath}/${newName}`) : (0, import_obsidian10.normalizePath)(newName);
+        if (nextPath === oldPath) return;
+        if (app.vault.getAbstractFileByPath(nextPath)) {
+          new import_obsidian10.Notice("\u540C\u540D\u6587\u4EF6\u6216\u6587\u4EF6\u5939\u5DF2\u5B58\u5728");
+          return;
+        }
         await app.fileManager.renameFile(action.target, nextPath);
+        const nextOrderMap = {};
+        for (const [key, list] of Object.entries(settings.customOrder)) {
+          let newKey = key;
+          if (action.target instanceof import_obsidian10.TFolder) {
+            if (key === oldPath) newKey = nextPath;
+            else if (key.startsWith(`${oldPath}/`)) {
+              newKey = `${nextPath}${key.slice(oldPath.length)}`;
+            }
+          }
+          nextOrderMap[newKey] = key === parentPath ? list.map((n2) => n2 === oldName ? newName : n2) : list;
+        }
+        await onReplaceCustomOrderMap(nextOrderMap);
+        if (activeRootPath === oldPath) {
+          setActiveRootPath(nextPath);
+        }
+        new import_obsidian10.Notice("\u5DF2\u91CD\u547D\u540D");
       } else if (action.type === "delete") {
         await app.vault.trash(action.target, true);
+        new import_obsidian10.Notice("\u5DF2\u79FB\u81F3\u56DE\u6536\u7AD9");
       }
     } catch (err) {
       new import_obsidian10.Notice(`\u64CD\u4F5C\u5931\u8D25: ${String(err)}`);
@@ -1963,9 +2508,12 @@ function KnowledgeTab({
   const handleRowPointerDown = (row, e3) => {
     if (e3.target.closest(".mh-more-btn")) return;
     clearLongPress();
+    justDraggedRef.current = false;
     dragStartPos.current = { x: e3.clientX, y: e3.clientY };
+    pointerYRef.current = e3.clientY;
     longPressTimer.current = window.setTimeout(() => {
       longPressTimer.current = null;
+      justDraggedRef.current = true;
       navigator.vibrate?.(15);
       setDragState({
         sourcePath: row.path,
@@ -1990,7 +2538,8 @@ function KnowledgeTab({
       return;
     }
     e3.preventDefault();
-    const rowEls = treeContainerRef.current?.querySelectorAll(
+    pointerYRef.current = e3.clientY;
+    const rowEls = treeListRef.current?.querySelectorAll(
       "[data-tree-path]"
     );
     if (!rowEls) return;
@@ -2032,6 +2581,9 @@ function KnowledgeTab({
     if (!dragState) return;
     const { sourcePath, targetPath, position } = dragState;
     setDragState(null);
+    window.setTimeout(() => {
+      justDraggedRef.current = false;
+    }, 80);
     if (!targetPath || !position || sourcePath === targetPath) return;
     if (isDescendantPath(sourcePath, targetPath)) return;
     const sourceFile = app.vault.getAbstractFileByPath(sourcePath);
@@ -2071,151 +2623,185 @@ function KnowledgeTab({
     if (target instanceof import_obsidian10.TFolder) return target.path;
     return target.parent?.path ?? "";
   };
+  const isMenuTargetRootKb = rowMenuTarget !== null && !activeRootFolder && rowMenuTarget instanceof import_obsidian10.TFolder && rowMenuTarget.parent?.isRoot();
+  const rootKbIndex = isMenuTargetRootKb ? rootItems.findIndex((r3) => r3.name === rowMenuTarget.name) : -1;
   return /* @__PURE__ */ u3("div", { class: "mh-tab-page mh-kb-page", children: [
-    !activeRootFolder ? /* @__PURE__ */ u3("div", { class: "mh-kb-list", children: rootItems.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
-      /* @__PURE__ */ u3(ObsidianIcon, { name: "book-open", size: 40, className: "mh-empty-icon" }),
-      /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: "\u6682\u65E0\u77E5\u8BC6\u5E93" }),
-      /* @__PURE__ */ u3("div", { class: "mh-empty-sub", children: "\u70B9\u51FB\u4E0B\u65B9 + \u65B0\u5EFA\u6587\u4EF6\u5939\u4F5C\u4E3A\u77E5\u8BC6\u5E93" })
-    ] }) : rootItems.map((kb) => /* @__PURE__ */ u3(
+    !activeRootFolder ? /* @__PURE__ */ u3(
       "div",
       {
-        class: "mh-kb-item",
-        onClick: () => setActiveRootPath(kb.path),
+        ref: rootListRef,
+        class: "mh-kb-list",
+        onScroll: (e3) => {
+          hubState.kbScrollTop = e3.currentTarget.scrollTop;
+        },
+        children: rootItems.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
+          /* @__PURE__ */ u3(ObsidianIcon, { name: "book-open", size: 40, className: "mh-empty-icon" }),
+          /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: "\u6682\u65E0\u77E5\u8BC6\u5E93" }),
+          /* @__PURE__ */ u3("div", { class: "mh-empty-sub", children: "\u70B9\u51FB\u4E0B\u65B9 + \u65B0\u5EFA\u6587\u4EF6\u5939\u4F5C\u4E3A\u77E5\u8BC6\u5E93" })
+        ] }) : rootItems.map((kb) => /* @__PURE__ */ u3(
+          "div",
+          {
+            class: "mh-kb-item",
+            onClick: () => {
+              hubState.kbScrollTop = 0;
+              setActiveRootPath(kb.path);
+            },
+            children: [
+              /* @__PURE__ */ u3("div", { class: "mh-kb-icon-box", children: /* @__PURE__ */ u3(ObsidianIcon, { name: "book-marked", size: 20 }) }),
+              /* @__PURE__ */ u3("div", { class: "mh-kb-info", children: [
+                /* @__PURE__ */ u3("div", { class: "mh-kb-name", children: kb.name }),
+                /* @__PURE__ */ u3("div", { class: "mh-kb-meta", children: [
+                  "\u5171 ",
+                  kb.docCount,
+                  " \u7BC7\u6587\u6863 \xB7 ",
+                  kb.latestTimeText
+                ] })
+              ] }),
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  type: "button",
+                  class: "mh-icon-btn mh-more-btn",
+                  "aria-label": "\u77E5\u8BC6\u5E93\u83DC\u5355",
+                  onClick: (e3) => {
+                    e3.stopPropagation();
+                    const f4 = app.vault.getAbstractFileByPath(kb.path);
+                    if (f4) setRowMenuTarget(f4);
+                  },
+                  children: /* @__PURE__ */ u3(ObsidianIcon, { name: "more-horizontal", size: 18 })
+                }
+              )
+            ]
+          },
+          kb.path
+        ))
+      }
+    ) : /* @__PURE__ */ u3(
+      "div",
+      {
+        class: `mh-kb-tree-view ${dragState ? "is-dragging" : ""}`,
+        onPointerMove: handleTreePointerMove,
+        onPointerUp: handleTreePointerUp,
+        onPointerCancel: handleTreePointerUp,
         children: [
-          /* @__PURE__ */ u3("div", { class: "mh-kb-icon-box", children: /* @__PURE__ */ u3(ObsidianIcon, { name: "book-marked", size: 20 }) }),
-          /* @__PURE__ */ u3("div", { class: "mh-kb-info", children: [
-            /* @__PURE__ */ u3("div", { class: "mh-kb-name", children: kb.name }),
-            /* @__PURE__ */ u3("div", { class: "mh-kb-meta", children: [
-              "\u5171 ",
-              kb.docCount,
-              " \u7BC7\u6587\u6863 \xB7 ",
-              kb.latestTimeText
-            ] })
+          /* @__PURE__ */ u3("div", { class: "mh-kb-tree-header", children: [
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-icon-btn mh-back-btn",
+                "aria-label": "\u8FD4\u56DE\u77E5\u8BC6\u5E93\u5217\u8868",
+                onClick: () => {
+                  hubState.kbScrollTop = 0;
+                  setActiveRootPath(null);
+                },
+                children: /* @__PURE__ */ u3(ObsidianIcon, { name: "chevron-left", size: 22 })
+              }
+            ),
+            /* @__PURE__ */ u3("div", { class: "mh-kb-tree-title", children: activeRootFolder.name }),
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-icon-btn mh-kb-header-more-btn",
+                "aria-label": "\u6587\u4EF6\u5939\u64CD\u4F5C",
+                onClick: () => setRowMenuTarget(activeRootFolder),
+                children: /* @__PURE__ */ u3(ObsidianIcon, { name: "more-horizontal", size: 20 })
+              }
+            )
           ] }),
           /* @__PURE__ */ u3(
-            "button",
+            "div",
             {
-              type: "button",
-              class: "mh-icon-btn mh-more-btn",
-              "aria-label": "\u77E5\u8BC6\u5E93\u83DC\u5355",
-              onClick: (e3) => {
-                e3.stopPropagation();
-                const f4 = app.vault.getAbstractFileByPath(kb.path);
-                if (f4) setRowMenuTarget(f4);
+              ref: treeListRef,
+              class: "mh-kb-tree-list",
+              onScroll: (e3) => {
+                hubState.kbScrollTop = e3.currentTarget.scrollTop;
               },
-              children: /* @__PURE__ */ u3(ObsidianIcon, { name: "more-horizontal", size: 18 })
+              children: treeRows.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
+                /* @__PURE__ */ u3(ObsidianIcon, { name: "folder-open", size: 38, className: "mh-empty-icon" }),
+                /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: "\u76EE\u5F55\u4E3A\u7A7A" }),
+                /* @__PURE__ */ u3("div", { class: "mh-empty-sub", children: "\u70B9\u51FB\u4E0B\u65B9 + \u65B0\u589E\u7B14\u8BB0\u6216\u6587\u4EF6\u5939" })
+              ] }) : treeRows.map((row) => {
+                const isSource = dragState?.sourcePath === row.path;
+                const isDropBefore = dragState?.targetPath === row.path && dragState.position === "before";
+                const isDropAfter = dragState?.targetPath === row.path && dragState.position === "after";
+                const isDropInside = dragState?.targetPath === row.path && dragState.position === "inside";
+                return /* @__PURE__ */ u3(
+                  "div",
+                  {
+                    "data-tree-path": row.path,
+                    "data-is-folder": String(row.isFolder),
+                    class: [
+                      "mh-tree-row",
+                      row.isFolder ? "is-folder" : "is-file",
+                      isSource ? "is-drag-source" : "",
+                      isDropBefore ? "is-drop-before" : "",
+                      isDropAfter ? "is-drop-after" : "",
+                      isDropInside ? "is-drop-inside" : ""
+                    ].filter(Boolean).join(" "),
+                    style: { paddingLeft: `${16 + row.depth * 22}px` },
+                    onPointerDown: (e3) => handleRowPointerDown(row, e3),
+                    onContextMenu: (e3) => {
+                      e3.preventDefault();
+                    },
+                    onClick: () => {
+                      if (dragState || justDraggedRef.current) return;
+                      if (row.isFolder) {
+                        toggleExpand(row.path);
+                      } else if (row.file instanceof import_obsidian10.TFile) {
+                        openFileInEditor(app, row.file);
+                      }
+                    },
+                    children: [
+                      /* @__PURE__ */ u3("span", { class: "mh-tree-chevron", children: row.isFolder ? /* @__PURE__ */ u3(
+                        ObsidianIcon,
+                        {
+                          name: row.expanded ? "chevron-down" : "chevron-right",
+                          size: 15
+                        }
+                      ) : /* @__PURE__ */ u3(
+                        ObsidianIcon,
+                        {
+                          name: row.iconName,
+                          size: 14,
+                          className: "mh-tree-file-icon"
+                        }
+                      ) }),
+                      /* @__PURE__ */ u3("span", { class: "mh-tree-label", children: row.displayName }),
+                      /* @__PURE__ */ u3(
+                        "button",
+                        {
+                          type: "button",
+                          class: "mh-icon-btn mh-more-btn",
+                          "aria-label": "\u66F4\u591A\u64CD\u4F5C",
+                          onClick: (e3) => {
+                            e3.stopPropagation();
+                            setRowMenuTarget(row.file);
+                          },
+                          children: /* @__PURE__ */ u3(ObsidianIcon, { name: "more-horizontal", size: 18 })
+                        }
+                      )
+                    ]
+                  },
+                  row.path
+                );
+              })
+            }
+          ),
+          dragState && /* @__PURE__ */ u3(
+            "div",
+            {
+              class: "mh-drag-ghost",
+              style: {
+                left: `${dragState.pointerX}px`,
+                top: `${dragState.pointerY}px`
+              },
+              children: /* @__PURE__ */ u3("span", { children: dragState.sourceName })
             }
           )
         ]
-      },
-      kb.path
-    )) }) : (
-      /* Level 2: Tree directory (no cover card) */
-      /* @__PURE__ */ u3(
-        "div",
-        {
-          ref: treeContainerRef,
-          class: `mh-kb-tree-view ${dragState ? "is-dragging" : ""}`,
-          onPointerMove: handleTreePointerMove,
-          onPointerUp: handleTreePointerUp,
-          onPointerCancel: handleTreePointerUp,
-          children: [
-            /* @__PURE__ */ u3("div", { class: "mh-kb-tree-header", children: [
-              /* @__PURE__ */ u3(
-                "button",
-                {
-                  type: "button",
-                  class: "mh-icon-btn mh-back-btn",
-                  "aria-label": "\u8FD4\u56DE\u77E5\u8BC6\u5E93\u5217\u8868",
-                  onClick: () => setActiveRootPath(null),
-                  children: /* @__PURE__ */ u3(ObsidianIcon, { name: "chevron-left", size: 22 })
-                }
-              ),
-              /* @__PURE__ */ u3("div", { class: "mh-kb-tree-title", children: activeRootFolder.name }),
-              /* @__PURE__ */ u3(
-                "button",
-                {
-                  type: "button",
-                  class: "mh-icon-btn mh-kb-header-more-btn",
-                  "aria-label": "\u6587\u4EF6\u5939\u64CD\u4F5C",
-                  onClick: () => setRowMenuTarget(activeRootFolder),
-                  children: /* @__PURE__ */ u3(ObsidianIcon, { name: "more-horizontal", size: 20 })
-                }
-              )
-            ] }),
-            /* @__PURE__ */ u3("div", { class: "mh-kb-tree-list", children: treeRows.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
-              /* @__PURE__ */ u3(ObsidianIcon, { name: "folder-open", size: 38, className: "mh-empty-icon" }),
-              /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: "\u76EE\u5F55\u4E3A\u7A7A" }),
-              /* @__PURE__ */ u3("div", { class: "mh-empty-sub", children: "\u70B9\u51FB\u4E0B\u65B9 + \u65B0\u589E\u7B14\u8BB0\u6216\u6587\u4EF6\u5939" })
-            ] }) : treeRows.map((row) => {
-              const isSource = dragState?.sourcePath === row.path;
-              const isDropBefore = dragState?.targetPath === row.path && dragState.position === "before";
-              const isDropAfter = dragState?.targetPath === row.path && dragState.position === "after";
-              const isDropInside = dragState?.targetPath === row.path && dragState.position === "inside";
-              return /* @__PURE__ */ u3(
-                "div",
-                {
-                  "data-tree-path": row.path,
-                  "data-is-folder": String(row.isFolder),
-                  class: [
-                    "mh-tree-row",
-                    row.isFolder ? "is-folder" : "is-file",
-                    isSource ? "is-drag-source" : "",
-                    isDropBefore ? "is-drop-before" : "",
-                    isDropAfter ? "is-drop-after" : "",
-                    isDropInside ? "is-drop-inside" : ""
-                  ].filter(Boolean).join(" "),
-                  style: { paddingLeft: `${16 + row.depth * 22}px` },
-                  onPointerDown: (e3) => handleRowPointerDown(row, e3),
-                  onClick: () => {
-                    if (dragState) return;
-                    if (row.isFolder) {
-                      toggleExpand(row.path);
-                    } else if (row.file instanceof import_obsidian10.TFile) {
-                      openFileInEditor(app, row.file);
-                    }
-                  },
-                  children: [
-                    /* @__PURE__ */ u3("span", { class: "mh-tree-chevron", children: row.isFolder ? /* @__PURE__ */ u3(
-                      ObsidianIcon,
-                      {
-                        name: row.expanded ? "chevron-down" : "chevron-right",
-                        size: 15
-                      }
-                    ) : null }),
-                    /* @__PURE__ */ u3("span", { class: "mh-tree-label", children: row.displayName }),
-                    /* @__PURE__ */ u3(
-                      "button",
-                      {
-                        type: "button",
-                        class: "mh-icon-btn mh-more-btn",
-                        "aria-label": "\u66F4\u591A\u64CD\u4F5C",
-                        onClick: (e3) => {
-                          e3.stopPropagation();
-                          setRowMenuTarget(row.file);
-                        },
-                        children: /* @__PURE__ */ u3(ObsidianIcon, { name: "more-horizontal", size: 18 })
-                      }
-                    )
-                  ]
-                },
-                row.path
-              );
-            }) }),
-            dragState && /* @__PURE__ */ u3(
-              "div",
-              {
-                class: "mh-drag-ghost",
-                style: {
-                  left: `${dragState.pointerX}px`,
-                  top: `${dragState.pointerY}px`
-                },
-                children: /* @__PURE__ */ u3("span", { children: dragState.sourceName })
-              }
-            )
-          ]
-        }
-      )
+      }
     ),
     /* @__PURE__ */ u3("div", { class: "mh-kb-floating-pill", children: [
       /* @__PURE__ */ u3(
@@ -2247,7 +2833,7 @@ function KnowledgeTab({
         onClose: () => setFabSheetOpen(false),
         showCancel: true,
         children: /* @__PURE__ */ u3("div", { class: "mh-create-grid", children: [
-          /* @__PURE__ */ u3(
+          activeRootFolder && /* @__PURE__ */ u3(
             "button",
             {
               type: "button",
@@ -2273,7 +2859,7 @@ function KnowledgeTab({
               },
               children: [
                 /* @__PURE__ */ u3(ObsidianIcon, { name: "folder-plus", size: 24 }),
-                /* @__PURE__ */ u3("span", { children: "\u6587\u4EF6\u5939" })
+                /* @__PURE__ */ u3("span", { children: activeRootFolder ? "\u6587\u4EF6\u5939" : "\u65B0\u5EFA\u77E5\u8BC6\u5E93" })
               ]
             }
           )
@@ -2302,7 +2888,7 @@ function KnowledgeTab({
                   });
                 },
                 children: [
-                  /* @__PURE__ */ u3(ObsidianIcon, { name: "file-plus", size: 20 }),
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "file-plus", size: 22 }),
                   /* @__PURE__ */ u3("span", { children: "\u65B0\u589E\u7B14\u8BB0" })
                 ]
               }
@@ -2321,8 +2907,40 @@ function KnowledgeTab({
                   });
                 },
                 children: [
-                  /* @__PURE__ */ u3(ObsidianIcon, { name: "folder-plus", size: 20 }),
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "folder-plus", size: 22 }),
                   /* @__PURE__ */ u3("span", { children: "\u65B0\u589E\u6587\u4EF6\u5939" })
+                ]
+              }
+            ),
+            isMenuTargetRootKb && rootKbIndex > 0 && /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-quick-tile",
+                onClick: () => {
+                  const name = rowMenuTarget.name;
+                  setRowMenuTarget(null);
+                  handleMoveRootFolder(name, -1);
+                },
+                children: [
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "arrow-up", size: 22 }),
+                  /* @__PURE__ */ u3("span", { children: "\u4E0A\u79FB" })
+                ]
+              }
+            ),
+            isMenuTargetRootKb && rootKbIndex >= 0 && rootKbIndex < rootItems.length - 1 && /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-quick-tile",
+                onClick: () => {
+                  const name = rowMenuTarget.name;
+                  setRowMenuTarget(null);
+                  handleMoveRootFolder(name, 1);
+                },
+                children: [
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "arrow-down", size: 22 }),
+                  /* @__PURE__ */ u3("span", { children: "\u4E0B\u79FB" })
                 ]
               }
             )
@@ -2368,7 +2986,7 @@ function KnowledgeTab({
       PromptModal,
       {
         open: promptAction !== null,
-        title: promptAction?.type === "new-note" ? "\u65B0\u589E\u7B14\u8BB0" : promptAction?.type === "new-folder" ? "\u65B0\u589E\u6587\u4EF6\u5939" : promptAction?.type === "rename" ? "\u91CD\u547D\u540D" : "\u786E\u8BA4\u5220\u9664",
+        title: promptAction?.type === "new-note" ? "\u65B0\u589E\u7B14\u8BB0" : promptAction?.type === "new-folder" ? activeRootFolder ? "\u65B0\u589E\u6587\u4EF6\u5939" : "\u65B0\u5EFA\u77E5\u8BC6\u5E93" : promptAction?.type === "rename" ? "\u91CD\u547D\u540D" : "\u786E\u8BA4\u5220\u9664",
         placeholder: promptAction?.type === "new-note" ? "\u8F93\u5165\u7B14\u8BB0\u540D\u79F0" : promptAction?.type === "new-folder" ? "\u8F93\u5165\u6587\u4EF6\u5939\u540D\u79F0" : "\u8F93\u5165\u65B0\u540D\u79F0",
         initialValue: promptAction?.type === "rename" ? promptAction.target instanceof import_obsidian10.TFile && promptAction.target.extension === "md" ? promptAction.target.basename : promptAction.target.name : "",
         message: promptAction?.type === "delete" ? `\u786E\u5B9A\u5C06\u300C${promptAction.target.name}\u300D\u79FB\u81F3\u56DE\u6536\u7AD9\u5417\uFF1F` : void 0,
@@ -2390,15 +3008,10 @@ var TABS = [
   { id: "task", label: "\u4EFB\u52A1" },
   { id: "knowledge", label: "\u77E5\u8BC6\u5E93" }
 ];
-function MobileHubRoot({
-  plugin,
-  initialTab,
-  onTabChange,
-  subscribeRefresh
-}) {
-  const [activeTab, setActiveTab] = d2(initialTab);
+function MobileHubRoot({ plugin, subscribeRefresh }) {
+  const [activeTab, setActiveTab] = d2(plugin.hubState.lastTab);
   const [kbInSubPage, setKbInSubPage] = d2(
-    Boolean(plugin.lastKnowledgeRoot)
+    Boolean(plugin.hubState.kbRootPath)
   );
   const [refreshTick, setRefreshTick] = d2(0);
   const [settings, setSettings] = d2(() => ({
@@ -2412,10 +3025,16 @@ function MobileHubRoot({
   }, [plugin, subscribeRefresh]);
   const selectTab = (tab) => {
     setActiveTab(tab);
-    onTabChange(tab);
+    plugin.hubState.lastTab = tab;
   };
   const handleUpdateCustomOrder = async (folderPath, orderedNames) => {
     plugin.settings.customOrder[folderPath] = orderedNames;
+    await plugin.saveSettings();
+    setSettings({ ...plugin.settings });
+    setRefreshTick((t3) => t3 + 1);
+  };
+  const handleReplaceCustomOrderMap = async (nextMap) => {
+    plugin.settings.customOrder = nextMap;
     await plugin.saveSettings();
     setSettings({ ...plugin.settings });
     setRefreshTick((t3) => t3 + 1);
@@ -2444,7 +3063,17 @@ function MobileHubRoot({
           children: t3.label
         },
         t3.id
-      )) })
+      )) }),
+      activeTab !== "knowledge" && /* @__PURE__ */ u3(
+        "button",
+        {
+          type: "button",
+          class: "mh-icon-btn mh-topbar-search-btn",
+          "aria-label": "\u5168\u5C40\u641C\u7D22",
+          onClick: () => openObsidianSwitcher(plugin.app),
+          children: /* @__PURE__ */ u3(ObsidianIcon, { name: "search", size: 19 })
+        }
+      )
     ] }),
     /* @__PURE__ */ u3("main", { class: "mh-content", children: [
       activeTab === "memo" && /* @__PURE__ */ u3(
@@ -2452,6 +3081,7 @@ function MobileHubRoot({
         {
           app: plugin.app,
           settings,
+          hubState: plugin.hubState,
           refreshTick
         }
       ),
@@ -2460,6 +3090,7 @@ function MobileHubRoot({
         {
           app: plugin.app,
           settings,
+          hubState: plugin.hubState,
           refreshTick
         }
       ),
@@ -2468,6 +3099,7 @@ function MobileHubRoot({
         {
           app: plugin.app,
           settings,
+          hubState: plugin.hubState,
           refreshTick
         }
       ),
@@ -2476,13 +3108,14 @@ function MobileHubRoot({
         {
           app: plugin.app,
           settings,
+          hubState: plugin.hubState,
           refreshTick,
-          initialRootPath: plugin.lastKnowledgeRoot,
           onRootPathChange: (path) => {
-            plugin.lastKnowledgeRoot = path;
+            plugin.hubState.kbRootPath = path;
             setKbInSubPage(Boolean(path));
           },
-          onUpdateCustomOrder: handleUpdateCustomOrder
+          onUpdateCustomOrder: handleUpdateCustomOrder,
+          onReplaceCustomOrderMap: handleReplaceCustomOrderMap
         }
       )
     ] })
@@ -2518,10 +3151,6 @@ var MobileHubView = class extends import_obsidian12.ItemView {
         MobileHubRoot,
         {
           plugin: this.plugin,
-          initialTab: this.plugin.lastTab,
-          onTabChange: (tab) => {
-            this.plugin.lastTab = tab;
-          },
           subscribeRefresh: (cb) => {
             this.listeners.add(cb);
             return () => this.listeners.delete(cb);
@@ -2545,8 +3174,20 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
   constructor() {
     super(...arguments);
     this.settings = { ...DEFAULT_SETTINGS };
-    this.lastTab = "memo";
-    this.lastKnowledgeRoot = null;
+    this.hubState = {
+      lastTab: "memo",
+      memoScrollTop: 0,
+      diarySelectedDate: formatDateKey(/* @__PURE__ */ new Date()),
+      diaryCollapsed: false,
+      diaryScrollTop: 0,
+      taskSelectedDate: formatDateKey(/* @__PURE__ */ new Date()),
+      taskCollapsed: false,
+      taskScrollTop: 0,
+      taskOverdueOpen: true,
+      kbRootPath: null,
+      kbExpandedPaths: [],
+      kbScrollTop: 0
+    };
     this.refreshTimer = null;
     this.editorBackBarEl = null;
     this.touchStartX = 0;
@@ -2579,20 +3220,34 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
         this.syncBodyClasses(this.app.workspace.activeLeaf);
       })
     );
-    const scheduleRefresh = () => {
+    const scheduleRefreshForFile = (file) => {
+      const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
+      if (leaves.length === 0) return;
+      if (file) {
+        const path = typeof file === "string" ? file : file.path;
+        if (!this.isPathRelevantToActiveTab(path)) return;
+      }
       if (this.refreshTimer !== null) {
         window.clearTimeout(this.refreshTimer);
       }
       this.refreshTimer = window.setTimeout(() => {
         this.refreshTimer = null;
         this.refreshAllHubViews();
-      }, 120);
+      }, 160);
     };
-    this.registerEvent(this.app.vault.on("create", scheduleRefresh));
-    this.registerEvent(this.app.vault.on("delete", scheduleRefresh));
-    this.registerEvent(this.app.vault.on("rename", scheduleRefresh));
-    this.registerEvent(this.app.vault.on("modify", scheduleRefresh));
-    this.registerEvent(this.app.metadataCache.on("changed", scheduleRefresh));
+    this.registerEvent(this.app.vault.on("create", (f4) => scheduleRefreshForFile(f4)));
+    this.registerEvent(this.app.vault.on("delete", (f4) => scheduleRefreshForFile(f4)));
+    this.registerEvent(
+      this.app.vault.on("rename", (f4, oldPath) => {
+        if (this.isPathRelevantToActiveTab(f4.path) || this.isPathRelevantToActiveTab(oldPath)) {
+          scheduleRefreshForFile();
+        }
+      })
+    );
+    this.registerEvent(this.app.vault.on("modify", (f4) => scheduleRefreshForFile(f4)));
+    this.registerEvent(
+      this.app.metadataCache.on("changed", (f4) => scheduleRefreshForFile(f4))
+    );
     this.installLeftSwipeBlocker();
     this.mountEditorBackBar();
     this.app.workspace.onLayoutReady(() => {
@@ -2615,6 +3270,17 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
     if (this.refreshTimer !== null) {
       window.clearTimeout(this.refreshTimer);
     }
+  }
+  isPathRelevantToActiveTab(rawPath) {
+    const p3 = (0, import_obsidian14.normalizePath)(rawPath);
+    const tab = this.hubState.lastTab;
+    const memoPrefix = `${(0, import_obsidian14.normalizePath)(this.settings.memoFolder)}/`;
+    const diaryPrefix = `${(0, import_obsidian14.normalizePath)(this.settings.diaryFolder)}/`;
+    const taskPrefix = `${(0, import_obsidian14.normalizePath)(this.settings.taskFolder)}/`;
+    if (tab === "memo") return p3 === this.settings.memoFolder || p3.startsWith(memoPrefix);
+    if (tab === "diary") return p3 === this.settings.diaryFolder || p3.startsWith(diaryPrefix);
+    if (tab === "task") return p3 === this.settings.taskFolder || p3.startsWith(taskPrefix);
+    return !p3.startsWith(memoPrefix) && !p3.startsWith(diaryPrefix) && !p3.startsWith(taskPrefix);
   }
   mountEditorBackBar() {
     if (this.editorBackBarEl) return;
@@ -2649,7 +3315,8 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
     );
   }
   /**
-   * Intercept left-to-right edge swipe gestures that open Obsidian Mobile's left file drawer.
+   * Intercept ONLY left-edge right-swipe gestures (<= 32px from left edge) while on Mobile Hub view.
+   * Never blocks editor text selection, wide tables, or calendar horizontal swipes.
    */
   installLeftSwipeBlocker() {
     this.boundTouchStart = (e3) => {
@@ -2660,7 +3327,10 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
     };
     this.boundTouchMove = (e3) => {
       if (!this.settings.disableLeftDrawerSwipe) return;
+      if (!document.body.classList.contains("is-mobile")) return;
+      if (!document.body.classList.contains("mh-hub-active")) return;
       if (e3.touches.length !== 1) return;
+      if (this.touchStartX > 32) return;
       const dx = e3.touches[0].clientX - this.touchStartX;
       const dy = e3.touches[0].clientY - this.touchStartY;
       if (dx > 10 && Math.abs(dx) > Math.abs(dy) * 1.1) {
@@ -2767,13 +3437,19 @@ var MobileHubSettingTab = class extends import_obsidian14.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian14.Setting(containerEl).setName("\u65E5\u5386\u6BCF\u5468\u4EE5\u5468\u4E00\u5F00\u59CB").setDesc("\u65E5\u8BB0\u4E0E\u4EFB\u52A1 Tab \u7684\u65E5\u5386\u7EDF\u4E00\u751F\u6548").addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.weekStartsMonday).onChange(async (val) => {
+        this.plugin.settings.weekStartsMonday = val;
+        await this.plugin.saveSettings();
+      })
+    );
     new import_obsidian14.Setting(containerEl).setName("\u79FB\u52A8\u7AEF\u542F\u52A8\u65F6\u81EA\u52A8\u6253\u5F00\u4E3B\u754C\u9762").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.autoOpenOnMobile).onChange(async (val) => {
         this.plugin.settings.autoOpenOnMobile = val;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian14.Setting(containerEl).setName("\u7981\u7528\u4ECE\u5DE6\u5411\u53F3\u6ED1\u52A8\u62C9\u51FA\u5DE6\u4FA7\u62BD\u5C49").addToggle(
+    new import_obsidian14.Setting(containerEl).setName("\u7981\u7528\u4ECE\u5DE6\u8FB9\u7F18\u5411\u53F3\u6ED1\u52A8\u62C9\u51FA\u5DE6\u4FA7\u62BD\u5C49").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.disableLeftDrawerSwipe).onChange(async (val) => {
         this.plugin.settings.disableLeftDrawerSwipe = val;
         await this.plugin.saveSettings();
