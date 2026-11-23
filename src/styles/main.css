@@ -333,14 +333,16 @@ body .mh-root .mh-fab:active {
   transform: scale(0.95);
 }
 
-/* Memo tab: circular + button horizontally centered */
-body .mh-root .mh-memo-page .mh-fab {
+/* Memo & Knowledge Base tabs: circular + button horizontally centered */
+body .mh-root .mh-memo-page .mh-fab,
+body .mh-root .mh-kb-page .mh-fab {
   left: 50%;
   right: auto;
   transform: translateX(-50%);
 }
 
-body .mh-root .mh-memo-page .mh-fab:active {
+body .mh-root .mh-memo-page .mh-fab:active,
+body .mh-root .mh-kb-page .mh-fab:active {
   transform: translateX(-50%) scale(0.95);
 }
 

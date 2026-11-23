@@ -7,7 +7,6 @@ import {
   getUniqueFilePath,
   isDescendantPath,
   openFileInEditor,
-  openObsidianSwitcher,
   sortChildrenWithCustomOrder,
 } from "../utils/obsidian";
 import { ObsidianIcon } from "../components/ObsidianIcon";
@@ -690,26 +689,15 @@ export function KnowledgeTab({
         </div>
       )}
 
-      {/* Floating bottom pill (ONLY in Knowledge Base tab, 2 buttons: Search + Plus) */}
-      <div class="mh-kb-floating-pill">
-        <button
-          type="button"
-          class="mh-pill-btn"
-          aria-label="搜索"
-          onClick={() => openObsidianSwitcher(app)}
-        >
-          <ObsidianIcon name="search" size={20} />
-        </button>
-        <span class="mh-pill-divider" />
-        <button
-          type="button"
-          class="mh-pill-btn"
-          aria-label="新建"
-          onClick={() => setFabSheetOpen(true)}
-        >
-          <ObsidianIcon name="plus-circle" size={21} />
-        </button>
-      </div>
+      {/* Unified purple circular + FAB (consistent with Memo & Diary tabs) */}
+      <button
+        type="button"
+        class="mh-fab"
+        aria-label="新建"
+        onClick={() => setFabSheetOpen(true)}
+      >
+        <ObsidianIcon name="plus" size={24} />
+      </button>
 
       {/* Bottom sheet for + button: at Level 1 only allow Folder (avoid orphan root notes); at Level 2 allow Note & Folder */}
       <BottomSheet

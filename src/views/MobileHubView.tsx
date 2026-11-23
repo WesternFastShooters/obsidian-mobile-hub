@@ -231,16 +231,14 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
             ))}
           </nav>
 
-          {activeTab !== "knowledge" && (
-            <button
-              type="button"
-              class="mh-icon-btn mh-topbar-search-btn"
-              aria-label="全局搜索"
-              onClick={() => openObsidianSwitcher(plugin.app)}
-            >
-              <ObsidianIcon name="search" size={19} />
-            </button>
-          )}
+          <button
+            type="button"
+            class="mh-icon-btn mh-topbar-search-btn"
+            aria-label="全局搜索"
+            onClick={() => openObsidianSwitcher(plugin.app)}
+          >
+            <ObsidianIcon name="search" size={19} />
+          </button>
         </header>
       )}
 

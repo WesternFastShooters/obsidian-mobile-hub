@@ -2569,29 +2569,16 @@ function KnowledgeTab({
         ]
       }
     ),
-    /* @__PURE__ */ u3("div", { class: "mh-kb-floating-pill", children: [
-      /* @__PURE__ */ u3(
-        "button",
-        {
-          type: "button",
-          class: "mh-pill-btn",
-          "aria-label": "\u641C\u7D22",
-          onClick: () => openObsidianSwitcher(app),
-          children: /* @__PURE__ */ u3(ObsidianIcon, { name: "search", size: 20 })
-        }
-      ),
-      /* @__PURE__ */ u3("span", { class: "mh-pill-divider" }),
-      /* @__PURE__ */ u3(
-        "button",
-        {
-          type: "button",
-          class: "mh-pill-btn",
-          "aria-label": "\u65B0\u5EFA",
-          onClick: () => setFabSheetOpen(true),
-          children: /* @__PURE__ */ u3(ObsidianIcon, { name: "plus-circle", size: 21 })
-        }
-      )
-    ] }),
+    /* @__PURE__ */ u3(
+      "button",
+      {
+        type: "button",
+        class: "mh-fab",
+        "aria-label": "\u65B0\u5EFA",
+        onClick: () => setFabSheetOpen(true),
+        children: /* @__PURE__ */ u3(ObsidianIcon, { name: "plus", size: 24 })
+      }
+    ),
     /* @__PURE__ */ u3(
       BottomSheet,
       {
@@ -2932,7 +2919,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
             },
             t3.id
           )) }),
-          activeTab !== "knowledge" && /* @__PURE__ */ u3(
+          /* @__PURE__ */ u3(
             "button",
             {
               type: "button",
