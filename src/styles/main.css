@@ -952,11 +952,11 @@ body .mh-root .mh-memo-page .mh-fab:active {
   content: "";
   position: absolute;
   top: 0;
-  left: 72px;
+  left: 16px;
   right: 16px;
   height: 1px;
   background: var(--background-modifier-border);
-  opacity: 0.65;
+  opacity: 0.55;
 }
 
 .mh-kb-item:active {
