@@ -39,8 +39,29 @@ export default class MobileHubPlugin extends Plugin {
   private boundTouchStart: ((e: TouchEvent) => void) | null = null;
   private boundTouchMove: ((e: TouchEvent) => void) | null = null;
 
+  isPhoneDevice(): boolean {
+    if (Platform.isPhone) return true;
+    // Also allow mobile emulation when viewport is phone-sized (<= 768px)
+    if (
+      (Platform.isMobile || document.body.classList.contains("is-mobile")) &&
+      !Platform.isTablet &&
+      window.innerWidth <= 768
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   async onload(): Promise<void> {
     await this.loadSettings();
+
+    // Always register settings tab so user can configure folders even on desktop
+    this.addSettingTab(new MobileHubSettingTab(this.app, this));
+
+    // Only activate Mobile Hub on phone devices; remain completely dormant on desktop/tablet
+    if (!this.isPhoneDevice()) {
+      return;
+    }
 
     this.registerView(
       VIEW_TYPE_MOBILE_HUB,
@@ -56,8 +77,6 @@ export default class MobileHubPlugin extends Plugin {
     this.addRibbonIcon("layout-grid", "Mobile Hub", () => {
       this.activateHubView();
     });
-
-    this.addSettingTab(new MobileHubSettingTab(this.app, this));
 
     // Sync body class when active leaf or layout changes (handles same-leaf view swaps)
     this.registerEvent(
@@ -111,9 +130,7 @@ export default class MobileHubPlugin extends Plugin {
     this.mountEditorBackBar();
 
     this.app.workspace.onLayoutReady(() => {
-      const isMobileMode =
-        Platform.isMobile || document.body.classList.contains("is-mobile");
-      if (this.settings.autoOpenOnMobile && isMobileMode) {
+      if (this.settings.autoOpenOnMobile && this.isPhoneDevice()) {
         this.activateHubView();
       }
       this.syncBodyClasses(this.app.workspace.activeLeaf);
@@ -324,6 +341,14 @@ class MobileHubSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Mobile Hub 设置" });
+
+    const isPhone = this.plugin.isPhoneDevice();
+    containerEl.createEl("p", {
+      text: isPhone
+        ? "当前设备：手机端（Mobile Hub 已激活）"
+        : "当前设备：非手机端（Mobile Hub 已静默，仅在手机端自动生效）",
+      cls: "setting-item-description",
+    });
 
     new Setting(containerEl)
       .setName("备忘录文件夹")

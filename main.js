@@ -3044,8 +3044,19 @@ var MobileHubPlugin = class extends import_obsidian12.Plugin {
     this.boundTouchStart = null;
     this.boundTouchMove = null;
   }
+  isPhoneDevice() {
+    if (import_obsidian12.Platform.isPhone) return true;
+    if ((import_obsidian12.Platform.isMobile || document.body.classList.contains("is-mobile")) && !import_obsidian12.Platform.isTablet && window.innerWidth <= 768) {
+      return true;
+    }
+    return false;
+  }
   async onload() {
     await this.loadSettings();
+    this.addSettingTab(new MobileHubSettingTab(this.app, this));
+    if (!this.isPhoneDevice()) {
+      return;
+    }
     this.registerView(
       VIEW_TYPE_MOBILE_HUB,
       (leaf) => new MobileHubView(leaf, this)
@@ -3058,7 +3069,6 @@ var MobileHubPlugin = class extends import_obsidian12.Plugin {
     this.addRibbonIcon("layout-grid", "Mobile Hub", () => {
       this.activateHubView();
     });
-    this.addSettingTab(new MobileHubSettingTab(this.app, this));
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
         this.syncBodyClasses(leaf);
@@ -3100,8 +3110,7 @@ var MobileHubPlugin = class extends import_obsidian12.Plugin {
     this.installLeftSwipeBlocker();
     this.mountEditorBackBar();
     this.app.workspace.onLayoutReady(() => {
-      const isMobileMode = import_obsidian12.Platform.isMobile || document.body.classList.contains("is-mobile");
-      if (this.settings.autoOpenOnMobile && isMobileMode) {
+      if (this.settings.autoOpenOnMobile && this.isPhoneDevice()) {
         this.activateHubView();
       }
       this.syncBodyClasses(this.app.workspace.activeLeaf);
@@ -3279,6 +3288,11 @@ var MobileHubSettingTab = class extends import_obsidian12.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Mobile Hub \u8BBE\u7F6E" });
+    const isPhone = this.plugin.isPhoneDevice();
+    containerEl.createEl("p", {
+      text: isPhone ? "\u5F53\u524D\u8BBE\u5907\uFF1A\u624B\u673A\u7AEF\uFF08Mobile Hub \u5DF2\u6FC0\u6D3B\uFF09" : "\u5F53\u524D\u8BBE\u5907\uFF1A\u975E\u624B\u673A\u7AEF\uFF08Mobile Hub \u5DF2\u9759\u9ED8\uFF0C\u4EC5\u5728\u624B\u673A\u7AEF\u81EA\u52A8\u751F\u6548\uFF09",
+      cls: "setting-item-description"
+    });
     new import_obsidian12.Setting(containerEl).setName("\u5907\u5FD8\u5F55\u6587\u4EF6\u5939").setDesc("\u5907\u5FD8\u5F55 Tab \u8BFB\u53D6\u7684\u6570\u636E\u76EE\u5F55").addText(
       (text) => text.setValue(this.plugin.settings.memoFolder).onChange(async (val) => {
         this.plugin.settings.memoFolder = val.trim() || "\u5907\u5FD8\u5F55";
