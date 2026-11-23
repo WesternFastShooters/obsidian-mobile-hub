@@ -1,0 +1,24 @@
+{
+  "name": "obsidian-mobile-hub",
+  "version": "1.0.0",
+  "description": "Reshape Obsidian Mobile UI with Memo, Diary, Task, and Knowledge Base tabs.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "dependencies": {
+    "preact": "^10.25.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.24.2",
+    "obsidian": "latest",
+    "typescript": "^5.7.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

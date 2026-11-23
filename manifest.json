@@ -1,0 +1,9 @@
+{
+  "id": "obsidian-mobile-hub",
+  "name": "Mobile Hub",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "Reshape Obsidian Mobile UI with Memo, Diary, Task, and Knowledge Base tabs.",
+  "author": "Mingrui",
+  "isDesktopOnly": false
+}

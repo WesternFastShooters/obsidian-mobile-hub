@@ -1,0 +1,1455 @@
+/* ==========================================================================
+   Obsidian Mobile Hub — 100% Native Obsidian CSS Variables
+   ========================================================================== */
+
+/* Hide native header, tab bar & bottom navbar on both Hub view and clean Editor view */
+.workspace-leaf-content[data-type="obsidian-mobile-hub-view"] .view-header,
+body.mh-hub-active .mod-root .view-header,
+body.mh-hub-active .mod-root .workspace-tab-header-container,
+body.mh-hub-active .workspace-tabs .workspace-tab-header-container,
+body.mh-editor-active .mod-root .view-header,
+body.mh-editor-active .mod-root .workspace-tab-header-container,
+body.mh-editor-active .workspace-tabs .workspace-tab-header-container {
+  display: none !important;
+}
+
+body.mh-hub-active.is-mobile .mobile-navbar,
+body.mh-editor-active.is-mobile .mobile-navbar {
+  display: none !important;
+}
+
+/* Remove extra top gap when tab header is hidden */
+body.mh-hub-active .mod-root .workspace-tab-container,
+body.mh-editor-active .mod-root .workspace-tab-container {
+  padding-top: 0 !important;
+}
+
+/* Minimal Yuque-style back bar for Obsidian's native MD editor */
+.mh-editor-backbar {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 46px);
+  padding: env(safe-area-inset-top, 0px) 10px 0 8px;
+  background: var(--background-primary);
+  align-items: center;
+  z-index: 40;
+}
+
+body.mh-editor-active .mh-editor-backbar {
+  display: flex;
+}
+
+body.mh-editor-active .workspace-leaf.mod-active .view-content {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 46px) !important;
+}
+
+.mh-editor-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-normal) !important;
+  border-radius: 50% !important;
+  corner-shape: round !important;
+  cursor: pointer;
+}
+
+.mh-editor-back-btn:active {
+  background: var(--background-modifier-hover) !important;
+}
+
+.mh-view-container {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 100%;
+  overflow: hidden !important;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+}
+
+/* Root Layout */
+.mh-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Override Obsidian Mobile's global button min-width/height/padding */
+.mh-root button {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto;
+  margin: 0;
+  font-family: inherit;
+}
+
+.mh-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mh-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-muted);
+  padding: 6px !important;
+  min-width: auto !important;
+  height: auto !important;
+  border-radius: var(--radius-m);
+  cursor: pointer;
+}
+
+.mh-icon-btn:active {
+  background: var(--background-modifier-hover) !important;
+  color: var(--text-normal);
+}
+
+/* ==========================================================================
+   Top Navigation Bar (Yuque-inspired, native Obsidian colors)
+   ========================================================================== */
+.mh-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px 16px;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.mh-settings-circle-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  corner-shape: round !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-secondary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  color: var(--text-normal);
+  padding: 0 !important;
+  box-shadow: none !important;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.mh-settings-circle-btn:active {
+  background: var(--background-modifier-hover);
+}
+
+.mh-tabs {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+}
+
+.mh-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.mh-tab-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 2px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+  position: relative;
+}
+
+.mh-tab-btn.is-active {
+  color: var(--text-normal);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.mh-content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mh-tab-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Empty State */
+.mh-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  text-align: center;
+  gap: 8px;
+}
+
+.mh-empty-icon {
+  opacity: 0.45;
+  margin-bottom: 4px;
+}
+
+.mh-empty-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.mh-empty-sub {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+/* Floating Action Button (Memo / Diary / Task) */
+body .mh-root .mh-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  width: 52px !important;
+  height: 52px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  corner-shape: round !important;
+  background: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  border: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-s) !important;
+  cursor: pointer;
+  z-index: 20;
+}
+
+body .mh-root .mh-fab:active {
+  transform: scale(0.95);
+}
+
+/* Memo tab: circular + button horizontally centered */
+body .mh-root .mh-memo-page .mh-fab {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+body .mh-root .mh-memo-page .mh-fab:active {
+  transform: translateX(-50%) scale(0.95);
+}
+
+/* ==========================================================================
+   Tab 1: Memo (Yuque Memo Cards)
+   ========================================================================== */
+.mh-memo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 14px 96px 14px;
+}
+
+.mh-memo-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  padding: 14px 16px 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.mh-memo-card:active {
+  background: var(--background-secondary-alt);
+}
+
+.mh-memo-preview {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-normal);
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mh-memo-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 2px;
+}
+
+.mh-memo-time {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* ==========================================================================
+   Shared Calendar Panel (Diary & Task)
+   ========================================================================== */
+.mh-calendar-sticky {
+  flex-shrink: 0;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  z-index: 5;
+}
+
+.mh-calendar {
+  padding: 10px 12px 4px 12px;
+}
+
+.mh-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2px 4px 10px 4px;
+}
+
+.mh-cal-month-trigger {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 6px !important;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-normal);
+  cursor: pointer;
+  border-radius: var(--radius-m);
+}
+
+.mh-cal-month-trigger:active {
+  background: var(--background-modifier-hover) !important;
+}
+
+/* Centered Year/Month Picker Modal */
+.mh-ym-modal {
+  width: 100%;
+  max-width: 320px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 16px;
+  padding: 20px 18px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: var(--shadow-l);
+}
+
+.mh-ym-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.mh-ym-tabs {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+}
+
+.mh-ym-tab {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 2px 4px !important;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.mh-ym-tab.is-active {
+  color: var(--interactive-accent);
+}
+
+.mh-ym-reset-btn {
+  position: absolute;
+  right: 0;
+  color: var(--interactive-accent) !important;
+}
+
+.mh-ym-month-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  row-gap: 14px;
+  column-gap: 8px;
+  place-items: center;
+}
+
+.mh-ym-month-cell {
+  width: 52px !important;
+  height: 52px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  corner-shape: round !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: 15px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.mh-ym-month-cell:active {
+  background: var(--background-modifier-hover) !important;
+}
+
+.mh-ym-month-cell.is-active {
+  background: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  font-weight: 700;
+}
+
+.mh-ym-year-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-height: 210px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mh-ym-year-item {
+  width: 100%;
+  padding: 10px 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: 17px;
+  font-weight: 500;
+  text-align: center;
+  border-radius: var(--radius-m);
+  cursor: pointer;
+}
+
+.mh-ym-year-item.is-active {
+  color: var(--interactive-accent);
+  font-weight: 700;
+  font-size: 19px;
+}
+
+.mh-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.mh-cal-weekday {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.mh-cal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mh-cal-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.mh-cal-cell {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0;
+  gap: 3px;
+  cursor: pointer;
+  color: var(--text-normal);
+  border-radius: 999px;
+}
+
+.mh-cal-cell.is-outside {
+  color: var(--text-faint);
+  opacity: 0.5;
+}
+
+.mh-cal-day-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  corner-shape: round !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mh-cal-cell.is-today .mh-cal-day-num {
+  color: var(--interactive-accent);
+  font-weight: 700;
+}
+
+.mh-cal-cell.is-selected .mh-cal-day-num {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-weight: 700;
+}
+
+.mh-cal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.mh-cal-dot.is-visible {
+  background: var(--interactive-accent);
+}
+
+.mh-cal-handler-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 6px 0;
+  touch-action: none;
+  cursor: ns-resize;
+}
+
+.mh-cal-handler-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--text-faint);
+  opacity: 0.6;
+}
+
+/* ==========================================================================
+   Tab 2: Diary (Durian Diary Timeline)
+   ========================================================================== */
+.mh-diary-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px 96px 16px;
+}
+
+.mh-timeline {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Continuous vertical line like Durian Diary */
+.mh-timeline::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: var(--background-modifier-border);
+}
+
+.mh-timeline-item {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 18px;
+}
+
+.mh-timeline-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 14px;
+  flex-shrink: 0;
+  padding-top: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.mh-timeline-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--interactive-accent);
+  box-shadow: 0 0 0 3px var(--background-primary);
+  flex-shrink: 0;
+}
+
+.mh-timeline-line {
+  display: none;
+}
+
+.mh-timeline-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mh-timeline-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.mh-timeline-time {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.mh-timeline-sub {
+  font-size: 12px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mh-diary-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.mh-diary-card:active {
+  background: var(--background-secondary-alt);
+}
+
+.mh-diary-images {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.mh-diary-thumb {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+}
+
+.mh-diary-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-normal);
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mh-diary-text.is-muted {
+  color: var(--text-faint);
+}
+
+/* Diary long-press bottom sheet (Edit / Delete) */
+.mh-diary-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 6px;
+}
+
+.mh-sheet-grabber {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--text-faint);
+  opacity: 0.55;
+}
+
+.mh-diary-sheet-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.mh-diary-sheet-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 12px !important;
+  background: var(--background-primary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  border-radius: var(--radius-l);
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mh-diary-sheet-action:active {
+  background: var(--background-modifier-hover) !important;
+}
+
+.mh-diary-sheet-action.is-danger {
+  color: var(--text-error);
+}
+
+/* ==========================================================================
+   Tab 3: Task (TickTick-inspired Cards & Half-Screen Sheet)
+   ========================================================================== */
+.mh-task-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 14px 96px 14px;
+}
+
+.mh-task-group-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  padding: 12px 14px;
+}
+
+.mh-task-group-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.mh-task-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.mh-task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 2px;
+  border-top: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+}
+
+.mh-task-row:first-child {
+  border-top: none;
+  padding-top: 4px;
+}
+
+.mh-task-row.is-done .mh-task-title {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+.mh-checkbox {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 5px;
+  border: 2px solid var(--interactive-accent) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-top: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.mh-checkbox.is-checked {
+  background: var(--interactive-accent) !important;
+  border-color: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+}
+
+.mh-task-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mh-task-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-normal);
+  word-break: break-word;
+}
+
+.mh-task-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.mh-task-due {
+  color: var(--interactive-accent);
+}
+
+.mh-task-folder {
+  color: var(--text-faint);
+}
+
+/* Task Half-screen Sheet */
+.mh-task-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 260px;
+}
+
+.mh-task-sheet-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.mh-task-sheet-folder {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.mh-task-sheet-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mh-priority-flag.mh-priority-high {
+  color: var(--color-red);
+}
+
+.mh-priority-flag.mh-priority-medium {
+  color: var(--interactive-accent);
+}
+
+.mh-priority-flag.mh-priority-low {
+  color: var(--text-muted);
+}
+
+.mh-task-sheet-date-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mh-date-picker-label {
+  position: relative;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--interactive-accent);
+  cursor: pointer;
+}
+
+.mh-hidden-date-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.mh-task-sheet-editor-trigger {
+  flex: 1;
+  min-height: 150px;
+  padding: 6px 2px;
+  border-radius: var(--radius-m);
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.mh-task-sheet-editor-trigger:active {
+  background: var(--background-modifier-hover);
+}
+
+.mh-task-sheet-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.mh-task-sheet-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ==========================================================================
+   Tab 4: Knowledge Base (Yuque List + Tree + Drag & Drop + Floating Pill)
+   ========================================================================== */
+.mh-kb-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 14px 104px 14px;
+  gap: 8px;
+}
+
+.mh-kb-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 12px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  cursor: pointer;
+}
+
+.mh-kb-item:active {
+  background: var(--background-secondary-alt);
+}
+
+.mh-kb-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--interactive-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mh-kb-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mh-kb-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mh-kb-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Level 2: Tree View */
+.mh-kb-tree-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mh-kb-tree-view.is-dragging {
+  touch-action: none;
+  overflow: hidden;
+}
+
+.mh-kb-tree-header {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  flex-shrink: 0;
+}
+
+.mh-back-btn {
+  color: var(--text-normal) !important;
+  justify-self: start;
+}
+
+.mh-kb-header-more-btn {
+  color: var(--text-normal) !important;
+  justify-self: end;
+}
+
+.mh-kb-tree-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-normal);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mh-kb-tree-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 104px 0;
+}
+
+.mh-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 46px;
+  padding-right: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.mh-tree-row:active {
+  background: var(--background-modifier-hover);
+}
+
+.mh-tree-row.is-drag-source {
+  opacity: 0.4;
+}
+
+.mh-tree-row.is-drop-inside {
+  background: var(--background-modifier-active-hover);
+  outline: 1.5px solid var(--interactive-accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-s);
+}
+
+.mh-tree-row.is-drop-before::before,
+.mh-tree-row.is-drop-after::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  background: var(--interactive-accent);
+  z-index: 5;
+}
+
+.mh-tree-row.is-drop-before::before {
+  top: 0;
+}
+
+.mh-tree-row.is-drop-after::after {
+  bottom: 0;
+}
+
+.mh-tree-chevron {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.mh-tree-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mh-tree-row.is-folder .mh-tree-label {
+  font-weight: 600;
+}
+
+.mh-drag-ghost {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  width: max-content;
+  max-width: min(260px, 75vw);
+  padding: 10px 18px;
+  background: var(--interactive-normal);
+  border: 1px solid var(--interactive-accent);
+  border-radius: var(--radius-l);
+  color: var(--text-normal);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: var(--shadow-l);
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.94;
+}
+
+/* Floating Bottom Pill — ONLY in Knowledge Base tab (Search + Plus) */
+.mh-kb-floating-pill {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+  display: flex;
+  align-items: center;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  box-shadow: var(--shadow-s);
+  z-index: 25;
+}
+
+.mh-pill-btn {
+  width: 52px;
+  height: 40px;
+  border-radius: 999px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.mh-pill-btn:active {
+  background: var(--background-modifier-hover) !important;
+}
+
+.mh-pill-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--background-modifier-border);
+  margin: 0 2px;
+}
+
+/* ==========================================================================
+   Bottom Sheet & Prompt Modal
+   ========================================================================== */
+@keyframes mh-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mh-sheet-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes mh-modal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.mh-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  z-index: 50;
+  animation: mh-fade-in 0.22s ease-out both;
+}
+
+.mh-sheet-panel {
+  background: var(--background-secondary);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  padding: 18px 16px calc(env(safe-area-inset-bottom, 0px) + 16px) 16px;
+  border-top: none;
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  will-change: transform;
+  animation: mh-sheet-slide-up 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mh-sheet-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-faint);
+  text-align: center;
+  margin-bottom: -2px;
+}
+
+.mh-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Bottom-most block Cancel button (Yuque style) */
+.mh-sheet-cancel {
+  width: 100%;
+  height: 50px !important;
+  border-radius: 12px !important;
+  background: var(--interactive-normal) !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mh-sheet-cancel:active {
+  background: var(--interactive-hover) !important;
+}
+
+/* Top-tier inline-block square business tiles (Yuque style) */
+.mh-create-grid,
+.mh-quick-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mh-create-tile,
+.mh-quick-tile {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 78px !important;
+  height: 78px !important;
+  padding: 8px 4px !important;
+  border-radius: 12px !important;
+  background: var(--interactive-normal) !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mh-create-tile span,
+.mh-quick-tile span {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.mh-create-tile:active,
+.mh-quick-tile:active {
+  background: var(--interactive-hover) !important;
+}
+
+.mh-create-tile-icon {
+  color: var(--text-normal);
+  display: inline-flex;
+}
+
+.mh-row-sheet-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Mid-tier block general action list (Rename / Delete) */
+.mh-action-list {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  background: var(--interactive-normal);
+  border: none;
+  overflow: hidden;
+}
+
+.mh-action-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 50px !important;
+  padding: 0 16px !important;
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--background-modifier-border) !important;
+  box-shadow: none !important;
+  color: var(--text-normal);
+  font-size: 15px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.mh-action-item:first-child {
+  border-top: none !important;
+}
+
+.mh-action-item:active {
+  background: var(--interactive-hover) !important;
+}
+
+.mh-action-item.is-danger {
+  color: var(--text-error);
+}
+
+/* Prompt Modal */
+.mh-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 60;
+  animation: mh-fade-in 0.18s ease-out both;
+}
+
+.mh-modal-card,
+.mh-ym-modal {
+  animation: mh-modal-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mh-modal-card {
+  width: 100%;
+  max-width: 340px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mh-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-normal);
+}
+
+.mh-modal-message {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.mh-modal-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  font-size: 15px;
+}
+
+.mh-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.mh-btn {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-m);
+  font-size: 14px;
+  font-weight: 600;
+  border: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.mh-btn-ghost {
+  background: var(--background-primary) !important;
+  color: var(--text-normal) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+}
+
+.mh-btn-primary {
+  background: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+}
+
+.mh-btn-danger {
+  background: var(--background-modifier-error) !important;
+  color: var(--text-on-accent) !important;
+}
