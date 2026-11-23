@@ -57,6 +57,11 @@ body.is-mobile.mh-editor-active .workspace-leaf.mod-active .view-content {
   padding-top: calc(var(--mh-safe-top, 0px) + 44px) !important;
 }
 
+body.is-mobile.mh-editor-active .workspace-leaf.mod-active .cm-scroller,
+body.is-mobile.mh-editor-active .workspace-leaf.mod-active .markdown-preview-view {
+  padding-top: 12px !important;
+}
+
 .mh-editor-back-btn {
   display: inline-flex;
   align-items: center;
