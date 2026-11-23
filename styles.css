@@ -375,10 +375,13 @@ body .mh-root .mh-memo-page .mh-fab:active {
   color: var(--text-normal);
   white-space: pre-wrap;
   word-break: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 10;
-  -webkit-box-orient: vertical;
+  max-height: calc(15px * 1.65 * 8);
   overflow: hidden;
+}
+
+.mh-memo-preview.is-overflow {
+  -webkit-mask-image: linear-gradient(to bottom, #000 66%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 66%, transparent 100%);
 }
 
 .mh-memo-footer {
@@ -746,7 +749,7 @@ body .mh-root .mh-memo-page .mh-fab:active {
 }
 
 .mh-diary-card.has-images .mh-diary-text {
-  -webkit-line-clamp: 3;
+  max-height: calc(14px * 1.6 * 3);
 }
 
 .mh-diary-card:active {
@@ -851,10 +854,13 @@ body .mh-root .mh-memo-page .mh-fab:active {
   color: var(--text-normal);
   white-space: pre-wrap;
   word-break: break-word;
-  display: -webkit-box;
-  -webkit-line-clamp: 6;
-  -webkit-box-orient: vertical;
+  max-height: calc(14px * 1.6 * 6);
   overflow: hidden;
+}
+
+.mh-diary-text.is-overflow {
+  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
 }
 
 .mh-diary-text.is-muted {

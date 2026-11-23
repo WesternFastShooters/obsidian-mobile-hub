@@ -36,6 +36,7 @@ export interface MemoItem {
   path: string;
   basename: string;
   preview: string;
+  isOverflow: boolean;
   timeText: string;
   mtime: number;
   ctime: number;
@@ -48,6 +49,7 @@ export interface DiaryItem {
   timeText: string; // HH:mm
   sortKey: number;
   preview: string;
+  isOverflow: boolean;
   images: string[]; // up to 3 thumbnails
   allImages: string[]; // all images for lightbox
 }

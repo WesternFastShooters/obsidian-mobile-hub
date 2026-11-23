@@ -1041,11 +1041,14 @@ function MemoTab({
     let cancelled = false;
     const readFile = async (f4) => {
       const raw = await app.vault.cachedRead(f4);
-      const preview = cleanMarkdownPreview(raw, 10) || f4.basename;
+      const preview = cleanMarkdownPreview(raw, 12) || f4.basename;
+      const lineCount = preview.split("\n").length;
+      const isOverflow = lineCount > 8 || preview.length > 240;
       return {
         path: f4.path,
         basename: f4.basename,
         preview,
+        isOverflow,
         timeText: formatDateTime(f4.stat.mtime),
         mtime: f4.stat.mtime,
         ctime: f4.stat.ctime
@@ -1168,7 +1171,13 @@ function MemoTab({
               class: "mh-memo-card",
               onClick: () => handleOpen(item.path),
               children: [
-                /* @__PURE__ */ u3("div", { class: "mh-memo-preview", children: item.preview }),
+                /* @__PURE__ */ u3(
+                  "div",
+                  {
+                    class: `mh-memo-preview ${item.isOverflow ? "is-overflow" : ""}`,
+                    children: item.preview
+                  }
+                ),
                 /* @__PURE__ */ u3("div", { class: "mh-memo-footer", children: [
                   /* @__PURE__ */ u3("span", { class: "mh-memo-time", children: item.timeText }),
                   /* @__PURE__ */ u3(
@@ -1657,8 +1666,11 @@ function DiaryTab({
       const loaded = await Promise.all(
         metas.map(async (m3) => {
           const raw = await app.vault.cachedRead(m3.file);
-          const preview = cleanMarkdownPreview(raw, 6);
           const allImages = extractImagesFromContent(app, raw, m3.file.path, 20);
+          const maxLines = allImages.length > 0 ? 3 : 6;
+          const preview = cleanMarkdownPreview(raw, maxLines + 2);
+          const lineCount = preview ? preview.split("\n").length : 0;
+          const isOverflow = lineCount > maxLines || preview.length > (allImages.length > 0 ? 90 : 180);
           return {
             path: m3.file.path,
             basename: m3.file.basename,
@@ -1666,6 +1678,7 @@ function DiaryTab({
             timeText: m3.timeText,
             sortKey: m3.sortKey,
             preview,
+            isOverflow,
             images: allImages.slice(0, 3),
             allImages
           };
@@ -1858,7 +1871,13 @@ date: ${selectedDate} ${hh}:${mm}
                       },
                       i4
                     )) }),
-                    entry.preview ? /* @__PURE__ */ u3("div", { class: "mh-diary-text", children: entry.preview }) : entry.images.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-diary-text is-muted", children: "\uFF08\u7A7A\u767D\u65E5\u8BB0\uFF09" }) : null
+                    entry.preview ? /* @__PURE__ */ u3(
+                      "div",
+                      {
+                        class: `mh-diary-text ${entry.isOverflow ? "is-overflow" : ""}`,
+                        children: entry.preview
+                      }
+                    ) : entry.images.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-diary-text is-muted", children: "\uFF08\u7A7A\u767D\u65E5\u8BB0\uFF09" }) : null
                   ]
                 }
               )

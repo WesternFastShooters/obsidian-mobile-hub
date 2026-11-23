@@ -87,8 +87,12 @@ export function DiaryTab({
       const loaded: DiaryItem[] = await Promise.all(
         metas.map(async (m) => {
           const raw = await app.vault.cachedRead(m.file);
-          const preview = cleanMarkdownPreview(raw, 6);
           const allImages = extractImagesFromContent(app, raw, m.file.path, 20);
+          const maxLines = allImages.length > 0 ? 3 : 6;
+          const preview = cleanMarkdownPreview(raw, maxLines + 2);
+          const lineCount = preview ? preview.split("\n").length : 0;
+          const isOverflow =
+            lineCount > maxLines || preview.length > (allImages.length > 0 ? 90 : 180);
           return {
             path: m.file.path,
             basename: m.file.basename,
@@ -96,6 +100,7 @@ export function DiaryTab({
             timeText: m.timeText,
             sortKey: m.sortKey,
             preview,
+            isOverflow,
             images: allImages.slice(0, 3),
             allImages,
           };
@@ -297,7 +302,11 @@ export function DiaryTab({
                         </div>
                       )}
                       {entry.preview ? (
-                        <div class="mh-diary-text">{entry.preview}</div>
+                        <div
+                          class={`mh-diary-text ${entry.isOverflow ? "is-overflow" : ""}`}
+                        >
+                          {entry.preview}
+                        </div>
                       ) : entry.images.length === 0 ? (
                         <div class="mh-diary-text is-muted">（空白日记）</div>
                       ) : null}

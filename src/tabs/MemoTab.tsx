@@ -53,11 +53,14 @@ export function MemoTab({
     let cancelled = false;
     const readFile = async (f: TFile): Promise<MemoItem> => {
       const raw = await app.vault.cachedRead(f);
-      const preview = cleanMarkdownPreview(raw, 10) || f.basename;
+      const preview = cleanMarkdownPreview(raw, 12) || f.basename;
+      const lineCount = preview.split("\n").length;
+      const isOverflow = lineCount > 8 || preview.length > 240;
       return {
         path: f.path,
         basename: f.basename,
         preview,
+        isOverflow,
         timeText: formatDateTime(f.stat.mtime),
         mtime: f.stat.mtime,
         ctime: f.stat.ctime,
@@ -195,7 +198,11 @@ export function MemoTab({
                 class="mh-memo-card"
                 onClick={() => handleOpen(item.path)}
               >
-                <div class="mh-memo-preview">{item.preview}</div>
+                <div
+                  class={`mh-memo-preview ${item.isOverflow ? "is-overflow" : ""}`}
+                >
+                  {item.preview}
+                </div>
                 <div class="mh-memo-footer">
                   <span class="mh-memo-time">{item.timeText}</span>
                   <button
