@@ -1,11 +1,8 @@
-export type HubTabId = "memo" | "diary" | "task" | "knowledge";
-
-export type TaskPriority = "low" | "medium" | "high";
+export type HubTabId = "memo" | "diary" | "knowledge";
 
 export interface MobileHubSettings {
   memoFolder: string;
   diaryFolder: string;
-  taskFolder: string;
   excludedFolders: string[];
   autoOpenOnMobile: boolean;
   disableLeftDrawerSwipe: boolean;
@@ -17,7 +14,6 @@ export interface MobileHubSettings {
 export const DEFAULT_SETTINGS: MobileHubSettings = {
   memoFolder: "备忘录",
   diaryFolder: "日记",
-  taskFolder: "任务",
   excludedFolders: ["assets", ".obsidian"],
   autoOpenOnMobile: true,
   disableLeftDrawerSwipe: true,
@@ -31,10 +27,6 @@ export interface HubRuntimeState {
   diarySelectedDate: string;
   diaryCollapsed: boolean;
   diaryScrollTop: number;
-  taskSelectedDate: string;
-  taskCollapsed: boolean;
-  taskScrollTop: number;
-  taskOverdueOpen: boolean;
   kbRootPath: string | null;
   kbExpandedPaths: string[];
   kbScrollTop: number;
@@ -58,17 +50,6 @@ export interface DiaryItem {
   preview: string;
   images: string[]; // up to 3 thumbnails
   allImages: string[]; // all images for lightbox
-}
-
-export interface TaskItem {
-  path: string;
-  basename: string; // title
-  due: string; // YYYY-MM-DD or ""
-  done: boolean;
-  priority: TaskPriority;
-  preview: string;
-  folderLabel: string;
-  mtime: number;
 }
 
 export interface KnowledgeRootItem {

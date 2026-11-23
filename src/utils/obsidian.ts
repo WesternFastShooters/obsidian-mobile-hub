@@ -1,5 +1,4 @@
 import { App, TAbstractFile, TFile, TFolder, normalizePath } from "obsidian";
-import { TaskPriority } from "../types";
 
 export function openObsidianSettings(app: App): void {
   const anyApp = app as unknown as {
@@ -188,35 +187,6 @@ export function getMarkdownFilesInFolder(app: App, folderPath: string): TFile[] 
   const target = app.vault.getAbstractFileByPath(normalized);
   if (!(target instanceof TFolder)) return [];
   return getFilesInFolderRecursive(target).filter((f) => f.extension === "md");
-}
-
-export function parseTaskFrontmatter(
-  app: App,
-  file: TFile
-): { due: string; done: boolean; priority: TaskPriority } {
-  const fm = app.metadataCache.getFileCache(file)?.frontmatter;
-  let due = "";
-  if (fm?.due) {
-    const parsed = parseDateTimeString(String(fm.due));
-    due = parsed ? parsed.dateKey : String(fm.due).slice(0, 10);
-  }
-  const done = fm?.done === true || fm?.done === "true";
-  const rawP = String(fm?.priority ?? "medium").toLowerCase();
-  const priority: TaskPriority =
-    rawP === "high" || rawP === "low" || rawP === "medium" ? rawP : "medium";
-  return { due, done, priority };
-}
-
-export async function updateTaskFrontmatter(
-  app: App,
-  file: TFile,
-  patch: Partial<{ due: string; done: boolean; priority: TaskPriority }>
-): Promise<void> {
-  await app.fileManager.processFrontMatter(file, (fm) => {
-    if (patch.due !== undefined) fm.due = patch.due;
-    if (patch.done !== undefined) fm.done = patch.done;
-    if (patch.priority !== undefined) fm.priority = patch.priority;
-  });
 }
 
 export async function getUniqueFilePath(

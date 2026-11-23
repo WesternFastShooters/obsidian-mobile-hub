@@ -22,13 +22,12 @@ __export(main_exports, {
   default: () => MobileHubPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian14 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/types.ts
 var DEFAULT_SETTINGS = {
   memoFolder: "\u5907\u5FD8\u5F55",
   diaryFolder: "\u65E5\u8BB0",
-  taskFolder: "\u4EFB\u52A1",
   excludedFolders: ["assets", ".obsidian"],
   autoOpenOnMobile: true,
   disableLeftDrawerSwipe: true,
@@ -37,7 +36,7 @@ var DEFAULT_SETTINGS = {
 };
 
 // src/views/MobileHubView.tsx
-var import_obsidian12 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 
 // node_modules/preact/dist/preact.module.js
 var n;
@@ -578,25 +577,6 @@ function getMarkdownFilesInFolder(app, folderPath) {
   const target = app.vault.getAbstractFileByPath(normalized);
   if (!(target instanceof import_obsidian.TFolder)) return [];
   return getFilesInFolderRecursive(target).filter((f4) => f4.extension === "md");
-}
-function parseTaskFrontmatter(app, file) {
-  const fm = app.metadataCache.getFileCache(file)?.frontmatter;
-  let due = "";
-  if (fm?.due) {
-    const parsed = parseDateTimeString(String(fm.due));
-    due = parsed ? parsed.dateKey : String(fm.due).slice(0, 10);
-  }
-  const done = fm?.done === true || fm?.done === "true";
-  const rawP = String(fm?.priority ?? "medium").toLowerCase();
-  const priority = rawP === "high" || rawP === "low" || rawP === "medium" ? rawP : "medium";
-  return { due, done, priority };
-}
-async function updateTaskFrontmatter(app, file, patch) {
-  await app.fileManager.processFrontMatter(file, (fm) => {
-    if (patch.due !== void 0) fm.due = patch.due;
-    if (patch.done !== void 0) fm.done = patch.done;
-    if (patch.priority !== void 0) fm.priority = patch.priority;
-  });
 }
 async function getUniqueFilePath(app, folderPath, baseName, ext = "md") {
   const cleanFolder = folderPath ? (0, import_obsidian.normalizePath)(folderPath) : "";
@@ -1793,502 +1773,12 @@ date: ${selectedDate} ${hh}:${mm}
   ] });
 }
 
-// src/tabs/TaskTab.tsx
-var import_obsidian8 = require("obsidian");
-var PRIORITY_ORDER = ["low", "medium", "high"];
-var PRIORITY_LABEL = {
-  low: "\u4F4E",
-  medium: "\u4E2D",
-  high: "\u9AD8"
-};
-function formatFriendlyDate(dateKey) {
-  if (!dateKey) return "\u65E0\u65E5\u671F";
-  const today = formatDateKey(/* @__PURE__ */ new Date());
-  if (dateKey === today) return "\u4ECA\u5929";
-  const parts = dateKey.split("-").map(Number);
-  if (parts.length === 3) {
-    return `${parts[1]}\u6708${parts[2]}\u65E5`;
-  }
-  return dateKey;
-}
-function addDays(base, days) {
-  const d3 = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days);
-  return formatDateKey(d3);
-}
-function sortTasks(list) {
-  return [...list].sort((a3, b2) => {
-    if (a3.done !== b2.done) return a3.done ? 1 : -1;
-    const pDiff = PRIORITY_ORDER.indexOf(b2.priority) - PRIORITY_ORDER.indexOf(a3.priority);
-    if (pDiff !== 0) return pDiff;
-    return b2.mtime - a3.mtime;
-  });
-}
-function TaskTab({ app, settings, hubState, refreshTick }) {
-  const [selectedDate, setSelectedDateState] = d2(
-    () => hubState.taskSelectedDate
-  );
-  const [overdueOpen, setOverdueOpenState] = d2(
-    () => hubState.taskOverdueOpen
-  );
-  const [noDateOpen, setNoDateOpen] = d2(false);
-  const [dayTasks, setDayTasks] = d2([]);
-  const [overdueTasks, setOverdueTasks] = d2([]);
-  const [noDateTasks, setNoDateTasks] = d2([]);
-  const [loading, setLoading] = d2(true);
-  const [activeTask, setActiveTask] = d2(null);
-  const [datePickerOpen, setDatePickerOpen] = d2(false);
-  const [createOpen, setCreateOpen] = d2(false);
-  const [deleteTarget, setDeleteTarget] = d2(null);
-  const bodyRef = A2(null);
-  const todayKey = formatDateKey(/* @__PURE__ */ new Date());
-  const setSelectedDate = (dateKey) => {
-    setSelectedDateState(dateKey);
-    hubState.taskSelectedDate = dateKey;
-  };
-  const setOverdueOpen = (next) => {
-    setOverdueOpenState(next);
-    hubState.taskOverdueOpen = next;
-  };
-  const allMetas = T2(() => {
-    const files = getMarkdownFilesInFolder(app, settings.taskFolder);
-    return files.map((file) => {
-      const { due, done, priority } = parseTaskFrontmatter(app, file);
-      const parentName = file.parent?.name || settings.taskFolder;
-      return {
-        file,
-        due,
-        done,
-        priority,
-        folderLabel: parentName
-      };
-    });
-  }, [app, settings.taskFolder, refreshTick]);
-  const markedDates = T2(() => {
-    const set = /* @__PURE__ */ new Set();
-    for (const m3 of allMetas) {
-      if (m3.due) set.add(m3.due);
-    }
-    return set;
-  }, [allMetas]);
-  h2(() => {
-    let cancelled = false;
-    const hydrate = async (metas) => {
-      const items = await Promise.all(
-        metas.map(async (m3) => {
-          const raw = await app.vault.cachedRead(m3.file);
-          return {
-            path: m3.file.path,
-            basename: m3.file.basename,
-            due: m3.due,
-            done: m3.done,
-            priority: m3.priority,
-            preview: cleanMarkdownPreview(raw, 6),
-            folderLabel: m3.folderLabel,
-            mtime: m3.file.stat.mtime
-          };
-        })
-      );
-      return sortTasks(items);
-    };
-    const load = async () => {
-      const dayMetas = allMetas.filter((m3) => m3.due === selectedDate);
-      const overdueMetas = allMetas.filter(
-        (m3) => m3.due !== "" && m3.due < todayKey && !m3.done && m3.due !== selectedDate
-      );
-      const undatedMetas = allMetas.filter((m3) => m3.due === "" && !m3.done);
-      const [dayRes, overdueRes, undatedRes] = await Promise.all([
-        hydrate(dayMetas),
-        hydrate(overdueMetas),
-        hydrate(undatedMetas)
-      ]);
-      if (!cancelled) {
-        setDayTasks(dayRes);
-        setOverdueTasks(overdueRes);
-        setNoDateTasks(undatedRes);
-        setLoading(false);
-        const combined = [...dayRes, ...overdueRes, ...undatedRes];
-        setActiveTask(
-          (prev) => prev ? combined.find((t3) => t3.path === prev.path) ?? null : null
-        );
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [app, allMetas, selectedDate, todayKey]);
-  h2(() => {
-    if (!loading && bodyRef.current && hubState.taskScrollTop > 0) {
-      bodyRef.current.scrollTop = hubState.taskScrollTop;
-    }
-  }, [loading]);
-  const patchTaskInLists = (path, patch) => {
-    const apply = (arr) => arr.map((t3) => t3.path === path ? { ...t3, ...patch } : t3);
-    setDayTasks(apply);
-    setOverdueTasks(apply);
-    setNoDateTasks(apply);
-    setActiveTask((prev) => prev && prev.path === path ? { ...prev, ...patch } : prev);
-  };
-  const handleToggleDone = async (task, e3) => {
-    e3?.stopPropagation();
-    const file = app.vault.getAbstractFileByPath(task.path);
-    if (!(file instanceof import_obsidian8.TFile)) return;
-    const nextDone = !task.done;
-    patchTaskInLists(task.path, { done: nextDone });
-    await updateTaskFrontmatter(app, file, { done: nextDone });
-  };
-  const handleCyclePriority = async (task) => {
-    const file = app.vault.getAbstractFileByPath(task.path);
-    if (!(file instanceof import_obsidian8.TFile)) return;
-    const nextIdx = (PRIORITY_ORDER.indexOf(task.priority) + 1) % PRIORITY_ORDER.length;
-    const nextPriority = PRIORITY_ORDER[nextIdx];
-    patchTaskInLists(task.path, { priority: nextPriority });
-    await updateTaskFrontmatter(app, file, { priority: nextPriority });
-  };
-  const handleChangeDue = async (task, newDue) => {
-    const file = app.vault.getAbstractFileByPath(task.path);
-    if (!(file instanceof import_obsidian8.TFile)) return;
-    patchTaskInLists(task.path, { due: newDue });
-    await updateTaskFrontmatter(app, file, { due: newDue });
-    setDatePickerOpen(false);
-  };
-  const handleOpenInNativeEditor = async (task) => {
-    const file = app.vault.getAbstractFileByPath(task.path);
-    setActiveTask(null);
-    if (file instanceof import_obsidian8.TFile) {
-      await openFileInEditor(app, file);
-    }
-  };
-  const handleCreateTask = async (title) => {
-    setCreateOpen(false);
-    try {
-      await ensureFolder(app, settings.taskFolder);
-      const newPath = await getUniqueFilePath(app, settings.taskFolder, title, "md");
-      const content = `---
-due: ${selectedDate}
-done: false
-priority: medium
----
-
-`;
-      const file = await app.vault.create(newPath, content);
-      await openFileInEditor(app, file);
-    } catch (err) {
-      new import_obsidian8.Notice(`\u65B0\u5EFA\u4EFB\u52A1\u5931\u8D25: ${String(err)}`);
-    }
-  };
-  const handleDeleteTask = async () => {
-    if (!deleteTarget) return;
-    const file = app.vault.getAbstractFileByPath(deleteTarget.path);
-    try {
-      if (file instanceof import_obsidian8.TFile) {
-        await app.vault.trash(file, true);
-        new import_obsidian8.Notice("\u5DF2\u79FB\u81F3\u56DE\u6536\u7AD9");
-      }
-    } catch (err) {
-      new import_obsidian8.Notice(`\u5220\u9664\u5931\u8D25: ${String(err)}`);
-    }
-    setDeleteTarget(null);
-    setActiveTask(null);
-  };
-  const renderTaskRow = (task, isOverdue = false) => /* @__PURE__ */ u3(
-    "div",
-    {
-      class: `mh-task-row ${task.done ? "is-done" : ""}`,
-      onClick: () => setActiveTask(task),
-      children: [
-        /* @__PURE__ */ u3(
-          "button",
-          {
-            type: "button",
-            class: `mh-checkbox ${task.done ? "is-checked" : ""}`,
-            "aria-label": task.done ? "\u6807\u8BB0\u4E3A\u672A\u5B8C\u6210" : "\u6807\u8BB0\u4E3A\u5DF2\u5B8C\u6210",
-            onClick: (e3) => handleToggleDone(task, e3),
-            children: task.done && /* @__PURE__ */ u3(ObsidianIcon, { name: "check", size: 13 })
-          }
-        ),
-        /* @__PURE__ */ u3("div", { class: "mh-task-main", children: [
-          /* @__PURE__ */ u3("div", { class: "mh-task-title", children: task.basename }),
-          /* @__PURE__ */ u3("div", { class: "mh-task-meta", children: /* @__PURE__ */ u3("span", { class: `mh-task-due ${isOverdue ? "is-overdue" : ""}`, children: formatFriendlyDate(task.due) }) })
-        ] })
-      ]
-    },
-    task.path
-  );
-  const friendlySelected = formatFriendlyDate(selectedDate);
-  const hasAnyVisible = dayTasks.length > 0 || overdueTasks.length > 0 || noDateTasks.length > 0;
-  return /* @__PURE__ */ u3("div", { class: "mh-tab-page mh-task-page", children: [
-    /* @__PURE__ */ u3("div", { class: "mh-calendar-sticky", children: /* @__PURE__ */ u3(
-      CalendarPanel,
-      {
-        selectedDate,
-        onSelectDate: setSelectedDate,
-        markedDates,
-        collapsible: true,
-        initialCollapsed: hubState.taskCollapsed,
-        onCollapsedChange: (c3) => {
-          hubState.taskCollapsed = c3;
-        },
-        weekStartsMonday: settings.weekStartsMonday
-      }
-    ) }),
-    /* @__PURE__ */ u3(
-      "div",
-      {
-        ref: bodyRef,
-        class: "mh-task-body",
-        onScroll: (e3) => {
-          hubState.taskScrollTop = e3.currentTarget.scrollTop;
-        },
-        children: !loading && !hasAnyVisible ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
-          /* @__PURE__ */ u3(ObsidianIcon, { name: "check-circle-2", size: 40, className: "mh-empty-icon" }),
-          /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: [
-            friendlySelected,
-            "\u6682\u65E0\u4EFB\u52A1"
-          ] })
-        ] }) : /* @__PURE__ */ u3("div", { class: "mh-task-groups", children: [
-          overdueTasks.length > 0 && /* @__PURE__ */ u3("div", { class: "mh-task-group-card", children: [
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: "mh-task-group-toggle is-overdue",
-                onClick: () => setOverdueOpen(!overdueOpen),
-                children: [
-                  /* @__PURE__ */ u3("span", { children: [
-                    "\u5DF2\u8FC7\u671F\uFF08",
-                    overdueTasks.length,
-                    "\uFF09"
-                  ] }),
-                  /* @__PURE__ */ u3(
-                    ObsidianIcon,
-                    {
-                      name: overdueOpen ? "chevron-down" : "chevron-right",
-                      size: 16
-                    }
-                  )
-                ]
-              }
-            ),
-            overdueOpen && /* @__PURE__ */ u3("div", { class: "mh-task-list", children: overdueTasks.map((t3) => renderTaskRow(t3, true)) })
-          ] }),
-          /* @__PURE__ */ u3("div", { class: "mh-task-group-card", children: [
-            /* @__PURE__ */ u3("div", { class: "mh-task-group-header", children: friendlySelected }),
-            dayTasks.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-task-inline-empty", children: [
-              friendlySelected,
-              "\u6682\u65E0\u4EFB\u52A1"
-            ] }) : /* @__PURE__ */ u3("div", { class: "mh-task-list", children: dayTasks.map((t3) => renderTaskRow(t3)) })
-          ] }),
-          noDateTasks.length > 0 && /* @__PURE__ */ u3("div", { class: "mh-task-group-card", children: [
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: "mh-task-group-toggle",
-                onClick: () => setNoDateOpen(!noDateOpen),
-                children: [
-                  /* @__PURE__ */ u3("span", { children: [
-                    "\u65E0\u65E5\u671F\uFF08",
-                    noDateTasks.length,
-                    "\uFF09"
-                  ] }),
-                  /* @__PURE__ */ u3(
-                    ObsidianIcon,
-                    {
-                      name: noDateOpen ? "chevron-down" : "chevron-right",
-                      size: 16
-                    }
-                  )
-                ]
-              }
-            ),
-            noDateOpen && /* @__PURE__ */ u3("div", { class: "mh-task-list", children: noDateTasks.map((t3) => renderTaskRow(t3)) })
-          ] })
-        ] })
-      }
-    ),
-    /* @__PURE__ */ u3(
-      "button",
-      {
-        type: "button",
-        class: "mh-fab",
-        "aria-label": "\u65B0\u5EFA\u4EFB\u52A1",
-        onClick: () => setCreateOpen(true),
-        children: /* @__PURE__ */ u3(ObsidianIcon, { name: "plus", size: 24 })
-      }
-    ),
-    /* @__PURE__ */ u3(
-      BottomSheet,
-      {
-        open: activeTask !== null && !datePickerOpen,
-        onClose: () => setActiveTask(null),
-        children: activeTask && /* @__PURE__ */ u3("div", { class: "mh-task-sheet", children: [
-          /* @__PURE__ */ u3("div", { class: "mh-task-sheet-topbar", children: [
-            /* @__PURE__ */ u3("div", { class: "mh-task-sheet-folder", children: /* @__PURE__ */ u3("span", { children: activeTask.folderLabel }) }),
-            /* @__PURE__ */ u3("div", { class: "mh-task-sheet-actions", children: [
-              /* @__PURE__ */ u3(
-                "button",
-                {
-                  type: "button",
-                  class: `mh-icon-btn mh-priority-flag mh-priority-${activeTask.priority}`,
-                  title: `\u4F18\u5148\u7EA7\uFF1A${PRIORITY_LABEL[activeTask.priority]}`,
-                  onClick: () => handleCyclePriority(activeTask),
-                  children: /* @__PURE__ */ u3(ObsidianIcon, { name: "flag", size: 18 })
-                }
-              ),
-              /* @__PURE__ */ u3(
-                "button",
-                {
-                  type: "button",
-                  class: "mh-icon-btn",
-                  "aria-label": "\u5220\u9664\u4EFB\u52A1",
-                  onClick: () => setDeleteTarget(activeTask),
-                  children: /* @__PURE__ */ u3(ObsidianIcon, { name: "trash-2", size: 18 })
-                }
-              )
-            ] })
-          ] }),
-          /* @__PURE__ */ u3("div", { class: "mh-task-sheet-date-row", children: [
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: `mh-checkbox ${activeTask.done ? "is-checked" : ""}`,
-                onClick: () => handleToggleDone(activeTask),
-                children: activeTask.done && /* @__PURE__ */ u3(ObsidianIcon, { name: "check", size: 13 })
-              }
-            ),
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: "mh-date-trigger-btn",
-                onClick: () => setDatePickerOpen(true),
-                children: [
-                  /* @__PURE__ */ u3(ObsidianIcon, { name: "calendar", size: 15 }),
-                  /* @__PURE__ */ u3("span", { children: activeTask.due ? `${formatFriendlyDate(activeTask.due)}\uFF0C${activeTask.due}` : "\u8BBE\u7F6E\u65E5\u671F" })
-                ]
-              }
-            )
-          ] }),
-          /* @__PURE__ */ u3(
-            "div",
-            {
-              class: "mh-task-sheet-editor-trigger",
-              role: "button",
-              onClick: () => handleOpenInNativeEditor(activeTask),
-              children: [
-                /* @__PURE__ */ u3("div", { class: "mh-task-sheet-title", children: activeTask.basename }),
-                /* @__PURE__ */ u3("div", { class: "mh-task-sheet-desc", children: activeTask.preview || "\u70B9\u51FB\u6B64\u5904\u5C55\u5F00\u7F16\u8F91\u6B63\u6587\u63CF\u8FF0..." })
-              ]
-            }
-          )
-        ] })
-      }
-    ),
-    /* @__PURE__ */ u3(
-      BottomSheet,
-      {
-        open: datePickerOpen && activeTask !== null,
-        onClose: () => setDatePickerOpen(false),
-        showCancel: true,
-        children: activeTask && /* @__PURE__ */ u3("div", { class: "mh-date-picker-sheet", children: [
-          /* @__PURE__ */ u3("div", { class: "mh-quick-grid", children: [
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: "mh-quick-tile",
-                onClick: () => handleChangeDue(activeTask, todayKey),
-                children: [
-                  /* @__PURE__ */ u3(ObsidianIcon, { name: "sun", size: 20 }),
-                  /* @__PURE__ */ u3("span", { children: "\u4ECA\u5929" })
-                ]
-              }
-            ),
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: "mh-quick-tile",
-                onClick: () => handleChangeDue(activeTask, addDays(/* @__PURE__ */ new Date(), 1)),
-                children: [
-                  /* @__PURE__ */ u3(ObsidianIcon, { name: "sunrise", size: 20 }),
-                  /* @__PURE__ */ u3("span", { children: "\u660E\u5929" })
-                ]
-              }
-            ),
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: "mh-quick-tile",
-                onClick: () => handleChangeDue(activeTask, addDays(/* @__PURE__ */ new Date(), 7)),
-                children: [
-                  /* @__PURE__ */ u3(ObsidianIcon, { name: "calendar-days", size: 20 }),
-                  /* @__PURE__ */ u3("span", { children: "\u4E0B\u5468" })
-                ]
-              }
-            ),
-            /* @__PURE__ */ u3(
-              "button",
-              {
-                type: "button",
-                class: "mh-quick-tile",
-                onClick: () => handleChangeDue(activeTask, ""),
-                children: [
-                  /* @__PURE__ */ u3(ObsidianIcon, { name: "x-circle", size: 20 }),
-                  /* @__PURE__ */ u3("span", { children: "\u6E05\u9664\u65E5\u671F" })
-                ]
-              }
-            )
-          ] }),
-          /* @__PURE__ */ u3("div", { class: "mh-date-picker-cal", children: /* @__PURE__ */ u3(
-            CalendarPanel,
-            {
-              selectedDate: activeTask.due || todayKey,
-              onSelectDate: (d3) => handleChangeDue(activeTask, d3),
-              markedDates,
-              collapsible: false,
-              weekStartsMonday: settings.weekStartsMonday
-            }
-          ) })
-        ] })
-      }
-    ),
-    /* @__PURE__ */ u3(
-      PromptModal,
-      {
-        open: createOpen,
-        title: "\u65B0\u5EFA\u4EFB\u52A1",
-        placeholder: "\u8F93\u5165\u4EFB\u52A1\u6807\u9898",
-        confirmText: "\u521B\u5EFA\u5E76\u7F16\u8F91",
-        onCancel: () => setCreateOpen(false),
-        onConfirm: handleCreateTask
-      }
-    ),
-    /* @__PURE__ */ u3(
-      PromptModal,
-      {
-        open: deleteTarget !== null,
-        title: "\u5220\u9664\u4EFB\u52A1",
-        message: `\u786E\u5B9A\u5C06\u4EFB\u52A1\u300C${deleteTarget?.basename ?? ""}\u300D\u79FB\u81F3\u56DE\u6536\u7AD9\u5417\uFF1F`,
-        confirmText: "\u5220\u9664",
-        danger: true,
-        confirmOnly: true,
-        onCancel: () => setDeleteTarget(null),
-        onConfirm: handleDeleteTask
-      }
-    )
-  ] });
-}
-
 // src/tabs/KnowledgeTab.tsx
-var import_obsidian10 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 var IMAGE_EXTS = /* @__PURE__ */ new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"]);
 function getFileIconName(file) {
-  if (file instanceof import_obsidian10.TFolder) return "folder";
-  if (file instanceof import_obsidian10.TFile) {
+  if (file instanceof import_obsidian8.TFolder) return "folder";
+  if (file instanceof import_obsidian8.TFile) {
     const ext = file.extension.toLowerCase();
     if (ext === "md") return "file-text";
     if (IMAGE_EXTS.has(ext)) return "image";
@@ -2336,14 +1826,13 @@ function KnowledgeTab({
     return /* @__PURE__ */ new Set([
       settings.memoFolder,
       settings.diaryFolder,
-      settings.taskFolder,
       ...settings.excludedFolders
     ]);
   }, [settings]);
   const rootItems = T2(() => {
     const root = app.vault.getRoot();
     const folders = root.children.filter(
-      (c3) => c3 instanceof import_obsidian10.TFolder && !c3.name.startsWith(".") && !excludedSet.has(c3.name)
+      (c3) => c3 instanceof import_obsidian8.TFolder && !c3.name.startsWith(".") && !excludedSet.has(c3.name)
     );
     const sorted = sortChildrenWithCustomOrder(
       folders,
@@ -2369,7 +1858,7 @@ function KnowledgeTab({
   const activeRootFolder = T2(() => {
     if (!activeRootPath) return null;
     const f4 = app.vault.getAbstractFileByPath(activeRootPath);
-    return f4 instanceof import_obsidian10.TFolder ? f4 : null;
+    return f4 instanceof import_obsidian8.TFolder ? f4 : null;
   }, [app, activeRootPath, refreshTick]);
   h2(() => {
     if (activeRootPath && !activeRootFolder) {
@@ -2429,9 +1918,9 @@ function KnowledgeTab({
         settings.customOrder[folder.path]
       );
       for (const child of sorted) {
-        const isFolder = child instanceof import_obsidian10.TFolder;
+        const isFolder = child instanceof import_obsidian8.TFolder;
         const expanded = isFolder && expandedPaths.has(child.path);
-        const displayName = child instanceof import_obsidian10.TFile && child.extension === "md" ? child.basename : child.name;
+        const displayName = child instanceof import_obsidian8.TFile && child.extension === "md" ? child.basename : child.name;
         rows.push({
           file: child,
           path: child.path,
@@ -2480,33 +1969,33 @@ function KnowledgeTab({
         }
         await openFileInEditor(app, file);
       } else if (action.type === "new-folder") {
-        const targetPath = action.parentPath ? (0, import_obsidian10.normalizePath)(`${action.parentPath}/${value}`) : (0, import_obsidian10.normalizePath)(value);
+        const targetPath = action.parentPath ? (0, import_obsidian8.normalizePath)(`${action.parentPath}/${value}`) : (0, import_obsidian8.normalizePath)(value);
         if (app.vault.getAbstractFileByPath(targetPath)) {
-          new import_obsidian10.Notice("\u540C\u540D\u6587\u4EF6\u5939\u5DF2\u5B58\u5728");
+          new import_obsidian8.Notice("\u540C\u540D\u6587\u4EF6\u5939\u5DF2\u5B58\u5728");
           return;
         }
         await app.vault.createFolder(targetPath);
         if (action.parentPath) {
           setExpandedPaths((prev) => new Set(prev).add(action.parentPath));
         }
-        new import_obsidian10.Notice("\u5DF2\u521B\u5EFA\u6587\u4EF6\u5939");
+        new import_obsidian8.Notice("\u5DF2\u521B\u5EFA\u6587\u4EF6\u5939");
       } else if (action.type === "rename") {
         const oldPath = action.target.path;
         const oldName = action.target.name;
         const parentPath = action.target.parent?.path ?? "";
-        const ext = action.target instanceof import_obsidian10.TFile && action.target.extension ? `.${action.target.extension}` : "";
+        const ext = action.target instanceof import_obsidian8.TFile && action.target.extension ? `.${action.target.extension}` : "";
         const newName = ext && value.endsWith(ext) ? value : `${value}${ext}`;
-        const nextPath = parentPath ? (0, import_obsidian10.normalizePath)(`${parentPath}/${newName}`) : (0, import_obsidian10.normalizePath)(newName);
+        const nextPath = parentPath ? (0, import_obsidian8.normalizePath)(`${parentPath}/${newName}`) : (0, import_obsidian8.normalizePath)(newName);
         if (nextPath === oldPath) return;
         if (app.vault.getAbstractFileByPath(nextPath)) {
-          new import_obsidian10.Notice("\u540C\u540D\u6587\u4EF6\u6216\u6587\u4EF6\u5939\u5DF2\u5B58\u5728");
+          new import_obsidian8.Notice("\u540C\u540D\u6587\u4EF6\u6216\u6587\u4EF6\u5939\u5DF2\u5B58\u5728");
           return;
         }
         await app.fileManager.renameFile(action.target, nextPath);
         const nextOrderMap = {};
         for (const [key, list] of Object.entries(settings.customOrder)) {
           let newKey = key;
-          if (action.target instanceof import_obsidian10.TFolder) {
+          if (action.target instanceof import_obsidian8.TFolder) {
             if (key === oldPath) newKey = nextPath;
             else if (key.startsWith(`${oldPath}/`)) {
               newKey = `${nextPath}${key.slice(oldPath.length)}`;
@@ -2518,13 +2007,13 @@ function KnowledgeTab({
         if (activeRootPath === oldPath) {
           setActiveRootPath(nextPath);
         }
-        new import_obsidian10.Notice("\u5DF2\u91CD\u547D\u540D");
+        new import_obsidian8.Notice("\u5DF2\u91CD\u547D\u540D");
       } else if (action.type === "delete") {
         await app.vault.trash(action.target, true);
-        new import_obsidian10.Notice("\u5DF2\u79FB\u81F3\u56DE\u6536\u7AD9");
+        new import_obsidian8.Notice("\u5DF2\u79FB\u81F3\u56DE\u6536\u7AD9");
       }
     } catch (err) {
-      new import_obsidian10.Notice(`\u64CD\u4F5C\u5931\u8D25: ${String(err)}`);
+      new import_obsidian8.Notice(`\u64CD\u4F5C\u5931\u8D25: ${String(err)}`);
     }
   };
   const clearLongPress = () => {
@@ -2618,8 +2107,8 @@ function KnowledgeTab({
     const targetFile = app.vault.getAbstractFileByPath(targetPath);
     if (!sourceFile || !targetFile) return;
     try {
-      if (position === "inside" && targetFile instanceof import_obsidian10.TFolder) {
-        const destPath = (0, import_obsidian10.normalizePath)(`${targetFile.path}/${sourceFile.name}`);
+      if (position === "inside" && targetFile instanceof import_obsidian8.TFolder) {
+        const destPath = (0, import_obsidian8.normalizePath)(`${targetFile.path}/${sourceFile.name}`);
         if (destPath !== sourceFile.path) {
           await app.fileManager.renameFile(sourceFile, destPath);
           setExpandedPaths((prev) => new Set(prev).add(targetFile.path));
@@ -2629,7 +2118,7 @@ function KnowledgeTab({
       const targetParent = targetFile.parent;
       if (!targetParent) return;
       if (sourceFile.parent?.path !== targetParent.path) {
-        const destPath = targetParent.path ? (0, import_obsidian10.normalizePath)(`${targetParent.path}/${sourceFile.name}`) : (0, import_obsidian10.normalizePath)(sourceFile.name);
+        const destPath = targetParent.path ? (0, import_obsidian8.normalizePath)(`${targetParent.path}/${sourceFile.name}`) : (0, import_obsidian8.normalizePath)(sourceFile.name);
         await app.fileManager.renameFile(sourceFile, destPath);
       }
       const siblings = sortChildrenWithCustomOrder(
@@ -2643,15 +2132,15 @@ function KnowledgeTab({
       filtered.splice(insertIdx, 0, sourceFile.name);
       await onUpdateCustomOrder(targetParent.path, filtered);
     } catch (err) {
-      new import_obsidian10.Notice(`\u79FB\u52A8\u6216\u6392\u5E8F\u5931\u8D25: ${String(err)}`);
+      new import_obsidian8.Notice(`\u79FB\u52A8\u6216\u6392\u5E8F\u5931\u8D25: ${String(err)}`);
     }
   };
   const currentCreateParent = activeRootFolder ? activeRootFolder.path : "";
   const getRowActionParent = (target) => {
-    if (target instanceof import_obsidian10.TFolder) return target.path;
+    if (target instanceof import_obsidian8.TFolder) return target.path;
     return target.parent?.path ?? "";
   };
-  const isMenuTargetRootKb = rowMenuTarget !== null && !activeRootFolder && rowMenuTarget instanceof import_obsidian10.TFolder && rowMenuTarget.parent?.isRoot();
+  const isMenuTargetRootKb = rowMenuTarget !== null && !activeRootFolder && rowMenuTarget instanceof import_obsidian8.TFolder && rowMenuTarget.parent?.isRoot();
   const rootKbIndex = isMenuTargetRootKb ? rootItems.findIndex((r3) => r3.name === rowMenuTarget.name) : -1;
   return /* @__PURE__ */ u3("div", { class: "mh-tab-page mh-kb-page", children: [
     !activeRootFolder ? /* @__PURE__ */ u3(
@@ -2777,7 +2266,7 @@ function KnowledgeTab({
                       if (dragState || justDraggedRef.current) return;
                       if (row.isFolder) {
                         toggleExpand(row.path);
-                      } else if (row.file instanceof import_obsidian10.TFile) {
+                      } else if (row.file instanceof import_obsidian8.TFile) {
                         openFileInEditor(app, row.file);
                       }
                     },
@@ -3016,7 +2505,7 @@ function KnowledgeTab({
         open: promptAction !== null,
         title: promptAction?.type === "new-note" ? "\u65B0\u589E\u7B14\u8BB0" : promptAction?.type === "new-folder" ? activeRootFolder ? "\u65B0\u589E\u6587\u4EF6\u5939" : "\u65B0\u5EFA\u77E5\u8BC6\u5E93" : promptAction?.type === "rename" ? "\u91CD\u547D\u540D" : "\u786E\u8BA4\u5220\u9664",
         placeholder: promptAction?.type === "new-note" ? "\u8F93\u5165\u7B14\u8BB0\u540D\u79F0" : promptAction?.type === "new-folder" ? "\u8F93\u5165\u6587\u4EF6\u5939\u540D\u79F0" : "\u8F93\u5165\u65B0\u540D\u79F0",
-        initialValue: promptAction?.type === "rename" ? promptAction.target instanceof import_obsidian10.TFile && promptAction.target.extension === "md" ? promptAction.target.basename : promptAction.target.name : "",
+        initialValue: promptAction?.type === "rename" ? promptAction.target instanceof import_obsidian8.TFile && promptAction.target.extension === "md" ? promptAction.target.basename : promptAction.target.name : "",
         message: promptAction?.type === "delete" ? `\u786E\u5B9A\u5C06\u300C${promptAction.target.name}\u300D\u79FB\u81F3\u56DE\u6536\u7AD9\u5417\uFF1F` : void 0,
         confirmText: promptAction?.type === "delete" ? "\u5220\u9664" : "\u786E\u5B9A",
         danger: promptAction?.type === "delete",
@@ -3033,7 +2522,6 @@ var VIEW_TYPE_MOBILE_HUB = "obsidian-mobile-hub-view";
 var TABS = [
   { id: "memo", label: "\u5907\u5FD8\u5F55" },
   { id: "diary", label: "\u65E5\u8BB0" },
-  { id: "task", label: "\u4EFB\u52A1" },
   { id: "knowledge", label: "\u77E5\u8BC6\u5E93" }
 ];
 function MobileHubRoot({ plugin, subscribeRefresh }) {
@@ -3236,15 +2724,6 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
                   }
                 }
               ) }),
-              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("task") && /* @__PURE__ */ u3(
-                TaskTab,
-                {
-                  app: plugin.app,
-                  settings,
-                  hubState: plugin.hubState,
-                  refreshTick
-                }
-              ) }),
               /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("knowledge") && /* @__PURE__ */ u3(
                 KnowledgeTab,
                 {
@@ -3267,7 +2746,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
     }
   );
 }
-var MobileHubView = class extends import_obsidian12.ItemView {
+var MobileHubView = class extends import_obsidian10.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.listeners = /* @__PURE__ */ new Set();
@@ -3316,7 +2795,7 @@ var MobileHubView = class extends import_obsidian12.ItemView {
 };
 
 // src/main.ts
-var MobileHubPlugin = class extends import_obsidian14.Plugin {
+var MobileHubPlugin = class extends import_obsidian12.Plugin {
   constructor() {
     super(...arguments);
     this.settings = { ...DEFAULT_SETTINGS };
@@ -3327,10 +2806,6 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
       diarySelectedDate: formatDateKey(/* @__PURE__ */ new Date()),
       diaryCollapsed: false,
       diaryScrollTop: 0,
-      taskSelectedDate: formatDateKey(/* @__PURE__ */ new Date()),
-      taskCollapsed: false,
-      taskScrollTop: 0,
-      taskOverdueOpen: true,
       kbRootPath: null,
       kbExpandedPaths: [],
       kbScrollTop: 0
@@ -3398,7 +2873,7 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
     this.installLeftSwipeBlocker();
     this.mountEditorBackBar();
     this.app.workspace.onLayoutReady(() => {
-      const isMobileMode = import_obsidian14.Platform.isMobile || document.body.classList.contains("is-mobile");
+      const isMobileMode = import_obsidian12.Platform.isMobile || document.body.classList.contains("is-mobile");
       if (this.settings.autoOpenOnMobile && isMobileMode) {
         this.activateHubView();
       }
@@ -3419,15 +2894,13 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
     }
   }
   isPathRelevantToActiveTab(rawPath) {
-    const p3 = (0, import_obsidian14.normalizePath)(rawPath);
+    const p3 = (0, import_obsidian12.normalizePath)(rawPath);
     const tab = this.hubState.lastTab;
-    const memoPrefix = `${(0, import_obsidian14.normalizePath)(this.settings.memoFolder)}/`;
-    const diaryPrefix = `${(0, import_obsidian14.normalizePath)(this.settings.diaryFolder)}/`;
-    const taskPrefix = `${(0, import_obsidian14.normalizePath)(this.settings.taskFolder)}/`;
+    const memoPrefix = `${(0, import_obsidian12.normalizePath)(this.settings.memoFolder)}/`;
+    const diaryPrefix = `${(0, import_obsidian12.normalizePath)(this.settings.diaryFolder)}/`;
     if (tab === "memo") return p3 === this.settings.memoFolder || p3.startsWith(memoPrefix);
     if (tab === "diary") return p3 === this.settings.diaryFolder || p3.startsWith(diaryPrefix);
-    if (tab === "task") return p3 === this.settings.taskFolder || p3.startsWith(taskPrefix);
-    return !p3.startsWith(memoPrefix) && !p3.startsWith(diaryPrefix) && !p3.startsWith(taskPrefix);
+    return !p3.startsWith(memoPrefix) && !p3.startsWith(diaryPrefix);
   }
   mountEditorBackBar() {
     if (this.editorBackBarEl) return;
@@ -3437,7 +2910,7 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
     btn.type = "button";
     btn.className = "mh-editor-back-btn";
     btn.setAttribute("aria-label", "\u8FD4\u56DE");
-    (0, import_obsidian14.setIcon)(btn, "chevron-left");
+    (0, import_obsidian12.setIcon)(btn, "chevron-left");
     const svg = btn.querySelector("svg");
     if (svg) {
       svg.setAttribute("width", "24");
@@ -3517,7 +2990,7 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
     if (!draftPath) return;
     this.pendingDraftPath = null;
     const af = this.app.vault.getAbstractFileByPath(draftPath);
-    if (!(af instanceof import_obsidian14.TFile)) return;
+    if (!(af instanceof import_obsidian12.TFile)) return;
     try {
       const content = await this.app.vault.read(af);
       const body = stripFrontmatter(content).trim();
@@ -3570,7 +3043,7 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
     this.refreshAllHubViews();
   }
 };
-var MobileHubSettingTab = class extends import_obsidian14.PluginSettingTab {
+var MobileHubSettingTab = class extends import_obsidian12.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -3579,43 +3052,37 @@ var MobileHubSettingTab = class extends import_obsidian14.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Mobile Hub \u8BBE\u7F6E" });
-    new import_obsidian14.Setting(containerEl).setName("\u5907\u5FD8\u5F55\u6587\u4EF6\u5939").setDesc("\u5907\u5FD8\u5F55 Tab \u8BFB\u53D6\u7684\u6570\u636E\u76EE\u5F55").addText(
+    new import_obsidian12.Setting(containerEl).setName("\u5907\u5FD8\u5F55\u6587\u4EF6\u5939").setDesc("\u5907\u5FD8\u5F55 Tab \u8BFB\u53D6\u7684\u6570\u636E\u76EE\u5F55").addText(
       (text) => text.setValue(this.plugin.settings.memoFolder).onChange(async (val) => {
         this.plugin.settings.memoFolder = val.trim() || "\u5907\u5FD8\u5F55";
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian14.Setting(containerEl).setName("\u65E5\u8BB0\u6587\u4EF6\u5939").setDesc("\u65E5\u8BB0 Tab \u8BFB\u53D6\u7684\u6570\u636E\u76EE\u5F55").addText(
+    new import_obsidian12.Setting(containerEl).setName("\u65E5\u8BB0\u6587\u4EF6\u5939").setDesc("\u65E5\u8BB0 Tab \u8BFB\u53D6\u7684\u6570\u636E\u76EE\u5F55").addText(
       (text) => text.setValue(this.plugin.settings.diaryFolder).onChange(async (val) => {
         this.plugin.settings.diaryFolder = val.trim() || "\u65E5\u8BB0";
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian14.Setting(containerEl).setName("\u4EFB\u52A1\u6587\u4EF6\u5939").setDesc("\u4EFB\u52A1 Tab \u8BFB\u53D6\u7684\u6570\u636E\u76EE\u5F55").addText(
-      (text) => text.setValue(this.plugin.settings.taskFolder).onChange(async (val) => {
-        this.plugin.settings.taskFolder = val.trim() || "\u4EFB\u52A1";
-        await this.plugin.saveSettings();
-      })
-    );
-    new import_obsidian14.Setting(containerEl).setName("\u77E5\u8BC6\u5E93\u6392\u9664\u6587\u4EF6\u5939").setDesc("\u9017\u53F7\u5206\u9694\uFF0C\u4E0D\u663E\u793A\u5728\u77E5\u8BC6\u5E93\u5217\u8868\u4E2D\u7684\u6839\u76EE\u5F55\u6587\u4EF6\u5939").addText(
+    new import_obsidian12.Setting(containerEl).setName("\u77E5\u8BC6\u5E93\u6392\u9664\u6587\u4EF6\u5939").setDesc("\u9017\u53F7\u5206\u9694\uFF0C\u4E0D\u663E\u793A\u5728\u77E5\u8BC6\u5E93\u5217\u8868\u4E2D\u7684\u6839\u76EE\u5F55\u6587\u4EF6\u5939").addText(
       (text) => text.setValue(this.plugin.settings.excludedFolders.join(", ")).onChange(async (val) => {
         this.plugin.settings.excludedFolders = val.split(",").map((s3) => s3.trim()).filter(Boolean);
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian14.Setting(containerEl).setName("\u65E5\u5386\u6BCF\u5468\u4EE5\u5468\u4E00\u5F00\u59CB").setDesc("\u65E5\u8BB0\u4E0E\u4EFB\u52A1 Tab \u7684\u65E5\u5386\u7EDF\u4E00\u751F\u6548").addToggle(
+    new import_obsidian12.Setting(containerEl).setName("\u65E5\u5386\u6BCF\u5468\u4EE5\u5468\u4E00\u5F00\u59CB").setDesc("\u65E5\u8BB0\u4E0E\u4EFB\u52A1 Tab \u7684\u65E5\u5386\u7EDF\u4E00\u751F\u6548").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.weekStartsMonday).onChange(async (val) => {
         this.plugin.settings.weekStartsMonday = val;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian14.Setting(containerEl).setName("\u79FB\u52A8\u7AEF\u542F\u52A8\u65F6\u81EA\u52A8\u6253\u5F00\u4E3B\u754C\u9762").addToggle(
+    new import_obsidian12.Setting(containerEl).setName("\u79FB\u52A8\u7AEF\u542F\u52A8\u65F6\u81EA\u52A8\u6253\u5F00\u4E3B\u754C\u9762").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.autoOpenOnMobile).onChange(async (val) => {
         this.plugin.settings.autoOpenOnMobile = val;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian14.Setting(containerEl).setName("\u7981\u7528\u4ECE\u5DE6\u8FB9\u7F18\u5411\u53F3\u6ED1\u52A8\u62C9\u51FA\u5DE6\u4FA7\u62BD\u5C49").addToggle(
+    new import_obsidian12.Setting(containerEl).setName("\u7981\u7528\u4ECE\u5DE6\u8FB9\u7F18\u5411\u53F3\u6ED1\u52A8\u62C9\u51FA\u5DE6\u4FA7\u62BD\u5C49").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.disableLeftDrawerSwipe).onChange(async (val) => {
         this.plugin.settings.disableLeftDrawerSwipe = val;
         await this.plugin.saveSettings();

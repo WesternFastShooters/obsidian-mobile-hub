@@ -7,7 +7,6 @@ import { openObsidianSettings, openObsidianSwitcher } from "../utils/obsidian";
 import { ObsidianIcon } from "../components/ObsidianIcon";
 import { MemoTab } from "../tabs/MemoTab";
 import { DiaryTab } from "../tabs/DiaryTab";
-import { TaskTab } from "../tabs/TaskTab";
 import { KnowledgeTab } from "../tabs/KnowledgeTab";
 
 export const VIEW_TYPE_MOBILE_HUB = "obsidian-mobile-hub-view";
@@ -15,7 +14,6 @@ export const VIEW_TYPE_MOBILE_HUB = "obsidian-mobile-hub-view";
 const TABS: { id: HubTabId; label: string }[] = [
   { id: "memo", label: "备忘录" },
   { id: "diary", label: "日记" },
-  { id: "task", label: "任务" },
   { id: "knowledge", label: "知识库" },
 ];
 
@@ -275,17 +273,6 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
                 onTrackDraft={(path) => {
                   plugin.pendingDraftPath = path;
                 }}
-              />
-            )}
-          </section>
-
-          <section class="mh-pager-slide">
-            {mountedTabs.has("task") && (
-              <TaskTab
-                app={plugin.app}
-                settings={settings}
-                hubState={plugin.hubState}
-                refreshTick={refreshTick}
               />
             )}
           </section>

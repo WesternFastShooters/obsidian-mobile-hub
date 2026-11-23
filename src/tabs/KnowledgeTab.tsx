@@ -110,7 +110,6 @@ export function KnowledgeTab({
     return new Set<string>([
       settings.memoFolder,
       settings.diaryFolder,
-      settings.taskFolder,
       ...settings.excludedFolders,
     ]);
   }, [settings]);

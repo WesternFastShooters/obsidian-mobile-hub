@@ -27,10 +27,6 @@ export default class MobileHubPlugin extends Plugin {
     diarySelectedDate: formatDateKey(new Date()),
     diaryCollapsed: false,
     diaryScrollTop: 0,
-    taskSelectedDate: formatDateKey(new Date()),
-    taskCollapsed: false,
-    taskScrollTop: 0,
-    taskOverdueOpen: true,
     kbRootPath: null,
     kbExpandedPaths: [],
     kbScrollTop: 0,
@@ -143,17 +139,11 @@ export default class MobileHubPlugin extends Plugin {
     const tab = this.hubState.lastTab;
     const memoPrefix = `${normalizePath(this.settings.memoFolder)}/`;
     const diaryPrefix = `${normalizePath(this.settings.diaryFolder)}/`;
-    const taskPrefix = `${normalizePath(this.settings.taskFolder)}/`;
 
     if (tab === "memo") return p === this.settings.memoFolder || p.startsWith(memoPrefix);
     if (tab === "diary") return p === this.settings.diaryFolder || p.startsWith(diaryPrefix);
-    if (tab === "task") return p === this.settings.taskFolder || p.startsWith(taskPrefix);
-    // Knowledge tab excludes memo/diary/task
-    return (
-      !p.startsWith(memoPrefix) &&
-      !p.startsWith(diaryPrefix) &&
-      !p.startsWith(taskPrefix)
-    );
+    // Knowledge tab excludes memo/diary
+    return !p.startsWith(memoPrefix) && !p.startsWith(diaryPrefix);
   }
 
   private mountEditorBackBar(): void {
@@ -355,18 +345,6 @@ class MobileHubSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.diaryFolder)
           .onChange(async (val) => {
             this.plugin.settings.diaryFolder = val.trim() || "日记";
-            await this.plugin.saveSettings();
-          })
-      );
-
-    new Setting(containerEl)
-      .setName("任务文件夹")
-      .setDesc("任务 Tab 读取的数据目录")
-      .addText((text) =>
-        text
-          .setValue(this.plugin.settings.taskFolder)
-          .onChange(async (val) => {
-            this.plugin.settings.taskFolder = val.trim() || "任务";
             await this.plugin.saveSettings();
           })
       );
