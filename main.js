@@ -490,7 +490,7 @@ function stripFrontmatter(content) {
   return trimmed.slice(endIdx + 4).trim();
 }
 function cleanMarkdownPreview(content, maxLines = 8) {
-  const body = stripFrontmatter(content).replace(/!\[\[[^\]]+\]\]/g, "").replace(/!\[[^\]]*\]\([^)]+\)/g, "").trim();
+  const body = stripFrontmatter(content).replace(/!\[\[[^\]]+\]\]/g, "").replace(/!\[[^\]]*\]\([^)]+\)/g, "").replace(/\uFFFC/g, "").trim();
   if (!body) return "";
   const lines = body.split(/\r?\n/).map((l3) => l3.trimEnd()).filter((l3, idx, arr) => l3.length > 0 || idx > 0 && arr[idx - 1].length > 0);
   return lines.slice(0, maxLines).join("\n");
@@ -828,7 +828,8 @@ function PromptModal({
 }
 
 // src/tabs/MemoTab.tsx
-var PAGE_SIZE = 30;
+var INITIAL_FAST_COUNT = 8;
+var PAGE_SIZE = 20;
 function MemoTab({ app, settings, hubState, refreshTick }) {
   const [visibleCount, setVisibleCount] = d2(PAGE_SIZE);
   const [items, setItems] = d2([]);
@@ -845,25 +846,38 @@ function MemoTab({ app, settings, hubState, refreshTick }) {
   }, [app, settings.memoFolder, refreshTick]);
   h2(() => {
     let cancelled = false;
+    const readFile = async (f4) => {
+      const raw = await app.vault.cachedRead(f4);
+      const preview = cleanMarkdownPreview(raw, 10) || f4.basename;
+      return {
+        path: f4.path,
+        basename: f4.basename,
+        preview,
+        timeText: formatDateTime(f4.stat.mtime),
+        mtime: f4.stat.mtime,
+        ctime: f4.stat.ctime
+      };
+    };
     const load = async () => {
       const slice = allFiles.slice(0, visibleCount);
-      const loaded = await Promise.all(
-        slice.map(async (f4) => {
-          const raw = await app.vault.cachedRead(f4);
-          const preview = cleanMarkdownPreview(raw, 10) || f4.basename;
-          return {
-            path: f4.path,
-            basename: f4.basename,
-            preview,
-            timeText: formatDateTime(f4.stat.mtime),
-            mtime: f4.stat.mtime,
-            ctime: f4.stat.ctime
-          };
-        })
-      );
-      if (!cancelled) {
-        setItems(loaded);
-        setLoading(false);
+      if (slice.length === 0) {
+        if (!cancelled) {
+          setItems([]);
+          setLoading(false);
+        }
+        return;
+      }
+      const firstBatch = slice.slice(0, INITIAL_FAST_COUNT);
+      const firstLoaded = await Promise.all(firstBatch.map(readFile));
+      if (cancelled) return;
+      setItems(firstLoaded);
+      setLoading(false);
+      if (slice.length > INITIAL_FAST_COUNT) {
+        const restBatch = slice.slice(INITIAL_FAST_COUNT);
+        const restLoaded = await Promise.all(restBatch.map(readFile));
+        if (!cancelled) {
+          setItems([...firstLoaded, ...restLoaded]);
+        }
       }
     };
     load();
@@ -3040,86 +3054,133 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
     setRefreshTick((t3) => t3 + 1);
   };
   const hideMainTopbar = activeTab === "knowledge" && kbInSubPage;
-  return /* @__PURE__ */ u3("div", { class: "mh-root", "data-active-tab": activeTab, children: [
-    !hideMainTopbar && /* @__PURE__ */ u3("header", { class: "mh-topbar", children: [
-      /* @__PURE__ */ u3(
-        "button",
-        {
-          type: "button",
-          class: "mh-settings-circle-btn",
-          "aria-label": "\u6253\u5F00\u8BBE\u7F6E",
-          onClick: () => openObsidianSettings(plugin.app),
-          children: /* @__PURE__ */ u3(ObsidianIcon, { name: "settings", size: 19 })
-        }
-      ),
-      /* @__PURE__ */ u3("nav", { class: "mh-tabs", role: "tablist", "aria-label": "\u4E3B\u5BFC\u822A", children: TABS.map((t3) => /* @__PURE__ */ u3(
-        "button",
-        {
-          type: "button",
-          role: "tab",
-          "aria-selected": activeTab === t3.id,
-          class: `mh-tab-btn ${activeTab === t3.id ? "is-active" : ""}`,
-          onClick: () => selectTab(t3.id),
-          children: t3.label
-        },
-        t3.id
-      )) }),
-      activeTab !== "knowledge" && /* @__PURE__ */ u3(
-        "button",
-        {
-          type: "button",
-          class: "mh-icon-btn mh-topbar-search-btn",
-          "aria-label": "\u5168\u5C40\u641C\u7D22",
-          onClick: () => openObsidianSwitcher(plugin.app),
-          children: /* @__PURE__ */ u3(ObsidianIcon, { name: "search", size: 19 })
-        }
-      )
-    ] }),
-    /* @__PURE__ */ u3("main", { class: "mh-content", children: [
-      activeTab === "memo" && /* @__PURE__ */ u3(
-        MemoTab,
-        {
-          app: plugin.app,
-          settings,
-          hubState: plugin.hubState,
-          refreshTick
-        }
-      ),
-      activeTab === "diary" && /* @__PURE__ */ u3(
-        DiaryTab,
-        {
-          app: plugin.app,
-          settings,
-          hubState: plugin.hubState,
-          refreshTick
-        }
-      ),
-      activeTab === "task" && /* @__PURE__ */ u3(
-        TaskTab,
-        {
-          app: plugin.app,
-          settings,
-          hubState: plugin.hubState,
-          refreshTick
-        }
-      ),
-      activeTab === "knowledge" && /* @__PURE__ */ u3(
-        KnowledgeTab,
-        {
-          app: plugin.app,
-          settings,
-          hubState: plugin.hubState,
-          refreshTick,
-          onRootPathChange: (path) => {
-            plugin.hubState.kbRootPath = path;
-            setKbInSubPage(Boolean(path));
-          },
-          onUpdateCustomOrder: handleUpdateCustomOrder,
-          onReplaceCustomOrderMap: handleReplaceCustomOrderMap
-        }
-      )
-    ] })
-  ] });
+  const tabSwipeStart = A2(
+    null
+  );
+  const handleRootTouchStart = (e3) => {
+    e3.stopPropagation();
+    if (e3.touches.length !== 1) return;
+    const target = e3.target;
+    if (target?.closest(".mh-sheet-backdrop, .mh-modal-backdrop, .mh-lightbox-backdrop")) {
+      tabSwipeStart.current = null;
+      return;
+    }
+    tabSwipeStart.current = {
+      x: e3.touches[0].clientX,
+      y: e3.touches[0].clientY,
+      inCalendar: Boolean(target?.closest(".mh-calendar"))
+    };
+  };
+  const handleRootTouchMove = (e3) => {
+    e3.stopPropagation();
+  };
+  const handleRootTouchEnd = (e3) => {
+    e3.stopPropagation();
+    if (!tabSwipeStart.current || e3.changedTouches.length !== 1) return;
+    const start = tabSwipeStart.current;
+    tabSwipeStart.current = null;
+    if (start.inCalendar || hideMainTopbar) return;
+    const dx = e3.changedTouches[0].clientX - start.x;
+    const dy = e3.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      const idx = TABS.findIndex((t3) => t3.id === activeTab);
+      if (dx < 0 && idx < TABS.length - 1) {
+        selectTab(TABS[idx + 1].id);
+      } else if (dx > 0 && idx > 0) {
+        selectTab(TABS[idx - 1].id);
+      }
+    }
+  };
+  return /* @__PURE__ */ u3(
+    "div",
+    {
+      class: "mh-root",
+      "data-active-tab": activeTab,
+      onTouchStart: handleRootTouchStart,
+      onTouchMove: handleRootTouchMove,
+      onTouchEnd: handleRootTouchEnd,
+      children: [
+        !hideMainTopbar && /* @__PURE__ */ u3("header", { class: "mh-topbar", children: [
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "mh-settings-circle-btn",
+              "aria-label": "\u6253\u5F00\u8BBE\u7F6E",
+              onClick: () => openObsidianSettings(plugin.app),
+              children: /* @__PURE__ */ u3(ObsidianIcon, { name: "settings", size: 19 })
+            }
+          ),
+          /* @__PURE__ */ u3("nav", { class: "mh-tabs", role: "tablist", "aria-label": "\u4E3B\u5BFC\u822A", children: TABS.map((t3) => /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              role: "tab",
+              "aria-selected": activeTab === t3.id,
+              class: `mh-tab-btn ${activeTab === t3.id ? "is-active" : ""}`,
+              onClick: () => selectTab(t3.id),
+              children: t3.label
+            },
+            t3.id
+          )) }),
+          activeTab !== "knowledge" && /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "mh-icon-btn mh-topbar-search-btn",
+              "aria-label": "\u5168\u5C40\u641C\u7D22",
+              onClick: () => openObsidianSwitcher(plugin.app),
+              children: /* @__PURE__ */ u3(ObsidianIcon, { name: "search", size: 19 })
+            }
+          )
+        ] }),
+        /* @__PURE__ */ u3("main", { class: "mh-content", children: [
+          activeTab === "memo" && /* @__PURE__ */ u3(
+            MemoTab,
+            {
+              app: plugin.app,
+              settings,
+              hubState: plugin.hubState,
+              refreshTick
+            }
+          ),
+          activeTab === "diary" && /* @__PURE__ */ u3(
+            DiaryTab,
+            {
+              app: plugin.app,
+              settings,
+              hubState: plugin.hubState,
+              refreshTick
+            }
+          ),
+          activeTab === "task" && /* @__PURE__ */ u3(
+            TaskTab,
+            {
+              app: plugin.app,
+              settings,
+              hubState: plugin.hubState,
+              refreshTick
+            }
+          ),
+          activeTab === "knowledge" && /* @__PURE__ */ u3(
+            KnowledgeTab,
+            {
+              app: plugin.app,
+              settings,
+              hubState: plugin.hubState,
+              refreshTick,
+              onRootPathChange: (path) => {
+                plugin.hubState.kbRootPath = path;
+                setKbInSubPage(Boolean(path));
+              },
+              onUpdateCustomOrder: handleUpdateCustomOrder,
+              onReplaceCustomOrderMap: handleReplaceCustomOrderMap
+            }
+          )
+        ] })
+      ]
+    }
+  );
 }
 var MobileHubView = class extends import_obsidian12.ItemView {
   constructor(leaf, plugin) {
@@ -3379,7 +3440,9 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
     this.app.workspace.revealLeaf(leaf);
     if (this.settings.disableLeftDrawerSwipe) {
       const leftSplit = this.app.workspace.leftSplit;
+      const rightSplit = this.app.workspace.rightSplit;
       leftSplit?.collapse?.();
+      rightSplit?.collapse?.();
     }
     this.syncBodyClasses(leaf);
   }

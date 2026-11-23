@@ -67,9 +67,10 @@ export function stripFrontmatter(content: string): string {
 
 export function cleanMarkdownPreview(content: string, maxLines = 8): string {
   const body = stripFrontmatter(content)
-    // Remove image embeds from text preview
+    // Remove image embeds and stray object-replacement characters
     .replace(/!\[\[[^\]]+\]\]/g, "")
     .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+    .replace(/\uFFFC/g, "")
     .trim();
   if (!body) return "";
   const lines = body

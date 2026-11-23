@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import { render } from "preact";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type MobileHubPlugin from "../main";
 import { HubTabId, MobileHubSettings } from "../types";
 import { openObsidianSettings, openObsidianSwitcher } from "../utils/obsidian";
@@ -66,9 +66,60 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
   };
 
   const hideMainTopbar = activeTab === "knowledge" && kbInSubPage;
+  const tabSwipeStart = useRef<{ x: number; y: number; inCalendar: boolean } | null>(
+    null
+  );
+
+  const handleRootTouchStart = (e: TouchEvent) => {
+    // Prevent Obsidian Mobile's outer left/right drawer listeners from seeing touches inside Mobile Hub
+    e.stopPropagation();
+    if (e.touches.length !== 1) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest(".mh-sheet-backdrop, .mh-modal-backdrop, .mh-lightbox-backdrop")) {
+      tabSwipeStart.current = null;
+      return;
+    }
+    tabSwipeStart.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      inCalendar: Boolean(target?.closest(".mh-calendar")),
+    };
+  };
+
+  const handleRootTouchMove = (e: TouchEvent) => {
+    // Always stop propagation to block native left (file) and right (backlinks) drawers
+    e.stopPropagation();
+  };
+
+  const handleRootTouchEnd = (e: TouchEvent) => {
+    e.stopPropagation();
+    if (!tabSwipeStart.current || e.changedTouches.length !== 1) return;
+    const start = tabSwipeStart.current;
+    tabSwipeStart.current = null;
+
+    // Do not switch tabs if swiping inside calendar or inside Knowledge Base subpage
+    if (start.inCalendar || hideMainTopbar) return;
+
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dy = e.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      const idx = TABS.findIndex((t) => t.id === activeTab);
+      if (dx < 0 && idx < TABS.length - 1) {
+        selectTab(TABS[idx + 1].id);
+      } else if (dx > 0 && idx > 0) {
+        selectTab(TABS[idx - 1].id);
+      }
+    }
+  };
 
   return (
-    <div class="mh-root" data-active-tab={activeTab}>
+    <div
+      class="mh-root"
+      data-active-tab={activeTab}
+      onTouchStart={handleRootTouchStart}
+      onTouchMove={handleRootTouchMove}
+      onTouchEnd={handleRootTouchEnd}
+    >
       {!hideMainTopbar && (
         <header class="mh-topbar">
           <button

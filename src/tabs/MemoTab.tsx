@@ -21,7 +21,8 @@ interface MemoTabProps {
   refreshTick: number;
 }
 
-const PAGE_SIZE = 30;
+const INITIAL_FAST_COUNT = 8;
+const PAGE_SIZE = 20;
 
 export function MemoTab({ app, settings, hubState, refreshTick }: MemoTabProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -40,29 +41,44 @@ export function MemoTab({ app, settings, hubState, refreshTick }: MemoTabProps) 
     return files;
   }, [app, settings.memoFolder, refreshTick]);
 
-  // Paginated lazy cachedRead (only reads visible window, safe for 4000+ file vaults)
+  // Two-stage progressive load: first 8 cards paint immediately, remaining hydrate in background
   useEffect(() => {
     let cancelled = false;
+    const readFile = async (f: TFile): Promise<MemoItem> => {
+      const raw = await app.vault.cachedRead(f);
+      const preview = cleanMarkdownPreview(raw, 10) || f.basename;
+      return {
+        path: f.path,
+        basename: f.basename,
+        preview,
+        timeText: formatDateTime(f.stat.mtime),
+        mtime: f.stat.mtime,
+        ctime: f.stat.ctime,
+      };
+    };
+
     const load = async () => {
       const slice = allFiles.slice(0, visibleCount);
-      const loaded: MemoItem[] = await Promise.all(
-        slice.map(async (f) => {
-          const raw = await app.vault.cachedRead(f);
-          const preview = cleanMarkdownPreview(raw, 10) || f.basename;
-          return {
-            path: f.path,
-            basename: f.basename,
-            preview,
-            timeText: formatDateTime(f.stat.mtime),
-            mtime: f.stat.mtime,
-            ctime: f.stat.ctime,
-          };
-        })
-      );
+      if (slice.length === 0) {
+        if (!cancelled) {
+          setItems([]);
+          setLoading(false);
+        }
+        return;
+      }
 
-      if (!cancelled) {
-        setItems(loaded);
-        setLoading(false);
+      const firstBatch = slice.slice(0, INITIAL_FAST_COUNT);
+      const firstLoaded = await Promise.all(firstBatch.map(readFile));
+      if (cancelled) return;
+      setItems(firstLoaded);
+      setLoading(false);
+
+      if (slice.length > INITIAL_FAST_COUNT) {
+        const restBatch = slice.slice(INITIAL_FAST_COUNT);
+        const restLoaded = await Promise.all(restBatch.map(readFile));
+        if (!cancelled) {
+          setItems([...firstLoaded, ...restLoaded]);
+        }
       }
     };
     load();

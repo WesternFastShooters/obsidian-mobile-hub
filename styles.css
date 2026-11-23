@@ -24,6 +24,17 @@ body.is-mobile.mh-editor-active .mod-root .workspace-tab-container {
   padding-top: 0 !important;
 }
 
+/* Safe-area helpers (Android WebView often reports 0px for env(), so add body.is-android floor) */
+body.is-mobile {
+  --mh-safe-top: max(var(--safe-area-inset-top, 0px), env(safe-area-inset-top, 0px));
+  --mh-safe-bottom: max(var(--safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
+}
+
+body.is-android {
+  --mh-safe-top: max(var(--safe-area-inset-top, 0px), env(safe-area-inset-top, 0px), 38px);
+  --mh-safe-bottom: max(var(--safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px), 48px);
+}
+
 /* Minimal Yuque-style back bar for Obsidian Mobile's native MD editor (z-index below native search & modals) */
 .mh-editor-backbar {
   display: none;
@@ -31,8 +42,8 @@ body.is-mobile.mh-editor-active .mod-root .workspace-tab-container {
   top: 0;
   left: 0;
   right: 0;
-  height: calc(env(safe-area-inset-top, 0px) + 44px);
-  padding: env(safe-area-inset-top, 0px) 10px 0 6px;
+  height: calc(var(--mh-safe-top, 0px) + 44px);
+  padding: var(--mh-safe-top, 0px) 10px 0 6px;
   background: var(--background-primary);
   align-items: center;
   z-index: 15;
@@ -43,7 +54,7 @@ body.is-mobile.mh-editor-active .mh-editor-backbar {
 }
 
 body.is-mobile.mh-editor-active .workspace-leaf.mod-active .view-content {
-  padding-top: 44px !important;
+  padding-top: calc(var(--mh-safe-top, 0px) + 44px) !important;
 }
 
 .mh-editor-back-btn {
@@ -141,7 +152,7 @@ body.is-mobile.mh-editor-active .workspace-leaf.mod-active .view-content {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px 16px;
+  padding: calc(var(--mh-safe-top, 0px) + 10px) 16px 10px 16px;
   background: var(--background-primary);
   border-bottom: 1px solid var(--background-modifier-border);
   flex-shrink: 0;
@@ -254,7 +265,7 @@ body.is-mobile.mh-editor-active .workspace-leaf.mod-active .view-content {
 body .mh-root .mh-fab {
   position: fixed;
   right: 20px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  bottom: calc(var(--mh-safe-bottom, 0px) + 22px);
   width: 52px !important;
   height: 52px !important;
   padding: 0 !important;
@@ -1185,7 +1196,7 @@ body .mh-root .mh-memo-page .mh-fab:active {
   display: grid;
   grid-template-columns: 40px 1fr 40px;
   align-items: center;
-  padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px 12px;
+  padding: calc(var(--mh-safe-top, 0px) + 10px) 12px 10px 12px;
   border-bottom: 1px solid var(--background-modifier-border);
   background: var(--background-primary);
   flex-shrink: 0;
@@ -1320,7 +1331,7 @@ body .mh-root .mh-memo-page .mh-fab:active {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+  bottom: calc(var(--mh-safe-bottom, 0px) + 20px);
   display: flex;
   align-items: center;
   background: var(--background-secondary);
@@ -1426,7 +1437,7 @@ body .mh-root .mh-memo-page .mh-fab:active {
   background: var(--background-secondary);
   border-top-left-radius: 18px;
   border-top-right-radius: 18px;
-  padding: 18px 16px calc(env(safe-area-inset-bottom, 0px) + 16px) 16px;
+  padding: 18px 16px calc(var(--mh-safe-bottom, 0px) + 16px) 16px;
   border-top: none;
   max-height: 80vh;
   overflow-y: auto;

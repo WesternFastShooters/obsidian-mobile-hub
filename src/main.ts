@@ -266,7 +266,11 @@ export default class MobileHubPlugin extends Plugin {
       const leftSplit = this.app.workspace.leftSplit as unknown as {
         collapse?: () => void;
       };
+      const rightSplit = this.app.workspace.rightSplit as unknown as {
+        collapse?: () => void;
+      };
       leftSplit?.collapse?.();
+      rightSplit?.collapse?.();
     }
     this.syncBodyClasses(leaf);
   }
