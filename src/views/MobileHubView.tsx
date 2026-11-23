@@ -2,7 +2,7 @@ import { ItemView, WorkspaceLeaf } from "obsidian";
 import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type MobileHubPlugin from "../main";
-import { HubTabId, MobileHubSettings } from "../types";
+import { HubTab, MobileHubSettings } from "../types";
 import { openObsidianSettings, openObsidianSwitcher } from "../utils/obsidian";
 import { ObsidianIcon } from "../components/ObsidianIcon";
 import { MemoTab } from "../tabs/MemoTab";
@@ -11,10 +11,10 @@ import { KnowledgeTab } from "../tabs/KnowledgeTab";
 
 export const VIEW_TYPE_MOBILE_HUB = "obsidian-mobile-hub-view";
 
-const TABS: { id: HubTabId; label: string }[] = [
-  { id: "memo", label: "备忘录" },
-  { id: "diary", label: "日记" },
-  { id: "knowledge", label: "知识库" },
+const TABS: { id: HubTab; label: string }[] = [
+  { id: HubTab.Memo, label: "备忘录" },
+  { id: HubTab.Diary, label: "日记" },
+  { id: HubTab.Knowledge, label: "知识库" },
 ];
 
 interface MobileHubRootProps {
@@ -23,7 +23,7 @@ interface MobileHubRootProps {
 }
 
 function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
-  const [activeTab, setActiveTab] = useState<HubTabId>(plugin.hubState.lastTab);
+  const [activeTab, setActiveTab] = useState<HubTab>(plugin.hubState.lastTab);
   const [kbInSubPage, setKbInSubPage] = useState<boolean>(
     Boolean(plugin.hubState.kbRootPath)
   );
@@ -33,7 +33,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
   }));
 
   // Lazy-mount tabs so startup stays fast, while mounting adjacent tab immediately on swipe
-  const [mountedTabs, setMountedTabs] = useState<Set<HubTabId>>(
+  const [mountedTabs, setMountedTabs] = useState<Set<HubTab>>(
     () => new Set([plugin.hubState.lastTab])
   );
 
@@ -57,7 +57,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
     });
   }, [plugin, subscribeRefresh]);
 
-  const ensureMounted = (tab: HubTabId) => {
+  const ensureMounted = (tab: HubTab) => {
     setMountedTabs((prev) => {
       if (prev.has(tab)) return prev;
       const next = new Set(prev);
@@ -66,7 +66,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
     });
   };
 
-  const selectTab = (tab: HubTabId) => {
+  const selectTab = (tab: HubTab) => {
     ensureMounted(tab);
     setActiveTab(tab);
     plugin.hubState.lastTab = tab;
@@ -91,7 +91,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
     setRefreshTick((t) => t + 1);
   };
 
-  const hideMainTopbar = activeTab === "knowledge" && kbInSubPage;
+  const hideMainTopbar = activeTab === HubTab.Knowledge && kbInSubPage;
   const activeIndex = Math.max(
     0,
     TABS.findIndex((t) => t.id === activeTab)
@@ -248,7 +248,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
           style={{ transform: trackTransform }}
         >
           <section class="mh-pager-slide">
-            {mountedTabs.has("memo") && (
+            {mountedTabs.has(HubTab.Memo) && (
               <MemoTab
                 app={plugin.app}
                 settings={settings}
@@ -262,7 +262,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
           </section>
 
           <section class="mh-pager-slide">
-            {mountedTabs.has("diary") && (
+            {mountedTabs.has(HubTab.Diary) && (
               <DiaryTab
                 app={plugin.app}
                 settings={settings}
@@ -276,7 +276,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
           </section>
 
           <section class="mh-pager-slide">
-            {mountedTabs.has("knowledge") && (
+            {mountedTabs.has(HubTab.Knowledge) && (
               <KnowledgeTab
                 app={plugin.app}
                 settings={settings}

@@ -1,4 +1,8 @@
-export type HubTabId = "memo" | "diary" | "knowledge";
+export enum HubTab {
+  Memo = "memo",
+  Diary = "diary",
+  Knowledge = "knowledge",
+}
 
 export interface MobileHubSettings {
   memoFolder: string;
@@ -22,7 +26,7 @@ export const DEFAULT_SETTINGS: MobileHubSettings = {
 };
 
 export interface HubRuntimeState {
-  lastTab: HubTabId;
+  lastTab: HubTab;
   memoScrollTop: number;
   diarySelectedDate: string;
   diaryCollapsed: boolean;

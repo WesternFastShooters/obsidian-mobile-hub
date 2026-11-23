@@ -13,6 +13,7 @@ import {
 import {
   DEFAULT_SETTINGS,
   HubRuntimeState,
+  HubTab,
   MobileHubSettings,
 } from "./types";
 import { MobileHubView, VIEW_TYPE_MOBILE_HUB } from "./views/MobileHubView";
@@ -22,7 +23,7 @@ export default class MobileHubPlugin extends Plugin {
   settings: MobileHubSettings = { ...DEFAULT_SETTINGS };
   pendingDraftPath: string | null = null;
   hubState: HubRuntimeState = {
-    lastTab: "memo",
+    lastTab: HubTab.Memo,
     memoScrollTop: 0,
     diarySelectedDate: formatDateKey(new Date()),
     diaryCollapsed: false,
@@ -157,8 +158,12 @@ export default class MobileHubPlugin extends Plugin {
     const memoPrefix = `${normalizePath(this.settings.memoFolder)}/`;
     const diaryPrefix = `${normalizePath(this.settings.diaryFolder)}/`;
 
-    if (tab === "memo") return p === this.settings.memoFolder || p.startsWith(memoPrefix);
-    if (tab === "diary") return p === this.settings.diaryFolder || p.startsWith(diaryPrefix);
+    if (tab === HubTab.Memo) {
+      return p === this.settings.memoFolder || p.startsWith(memoPrefix);
+    }
+    if (tab === HubTab.Diary) {
+      return p === this.settings.diaryFolder || p.startsWith(diaryPrefix);
+    }
     // Knowledge tab excludes memo/diary
     return !p.startsWith(memoPrefix) && !p.startsWith(diaryPrefix);
   }

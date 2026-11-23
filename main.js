@@ -2729,9 +2729,9 @@ function KnowledgeTab({
 // src/views/MobileHubView.tsx
 var VIEW_TYPE_MOBILE_HUB = "obsidian-mobile-hub-view";
 var TABS = [
-  { id: "memo", label: "\u5907\u5FD8\u5F55" },
-  { id: "diary", label: "\u65E5\u8BB0" },
-  { id: "knowledge", label: "\u77E5\u8BC6\u5E93" }
+  { id: "memo" /* Memo */, label: "\u5907\u5FD8\u5F55" },
+  { id: "diary" /* Diary */, label: "\u65E5\u8BB0" },
+  { id: "knowledge" /* Knowledge */, label: "\u77E5\u8BC6\u5E93" }
 ];
 function MobileHubRoot({ plugin, subscribeRefresh }) {
   const [activeTab, setActiveTab] = d2(plugin.hubState.lastTab);
@@ -2780,7 +2780,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
     setSettings({ ...plugin.settings });
     setRefreshTick((t3) => t3 + 1);
   };
-  const hideMainTopbar = activeTab === "knowledge" && kbInSubPage;
+  const hideMainTopbar = activeTab === "knowledge" /* Knowledge */ && kbInSubPage;
   const activeIndex = Math.max(
     0,
     TABS.findIndex((t3) => t3.id === activeTab)
@@ -2909,7 +2909,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
             class: `mh-pager-track ${isDraggingPager ? "is-dragging" : ""}`,
             style: { transform: trackTransform },
             children: [
-              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("memo") && /* @__PURE__ */ u3(
+              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("memo" /* Memo */) && /* @__PURE__ */ u3(
                 MemoTab,
                 {
                   app: plugin.app,
@@ -2921,7 +2921,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
                   }
                 }
               ) }),
-              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("diary") && /* @__PURE__ */ u3(
+              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("diary" /* Diary */) && /* @__PURE__ */ u3(
                 DiaryTab,
                 {
                   app: plugin.app,
@@ -2933,7 +2933,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
                   }
                 }
               ) }),
-              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("knowledge") && /* @__PURE__ */ u3(
+              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("knowledge" /* Knowledge */) && /* @__PURE__ */ u3(
                 KnowledgeTab,
                 {
                   app: plugin.app,
@@ -3010,7 +3010,7 @@ var MobileHubPlugin = class extends import_obsidian12.Plugin {
     this.settings = { ...DEFAULT_SETTINGS };
     this.pendingDraftPath = null;
     this.hubState = {
-      lastTab: "memo",
+      lastTab: "memo" /* Memo */,
       memoScrollTop: 0,
       diarySelectedDate: formatDateKey(/* @__PURE__ */ new Date()),
       diaryCollapsed: false,
@@ -3116,8 +3116,12 @@ var MobileHubPlugin = class extends import_obsidian12.Plugin {
     const tab = this.hubState.lastTab;
     const memoPrefix = `${(0, import_obsidian12.normalizePath)(this.settings.memoFolder)}/`;
     const diaryPrefix = `${(0, import_obsidian12.normalizePath)(this.settings.diaryFolder)}/`;
-    if (tab === "memo") return p3 === this.settings.memoFolder || p3.startsWith(memoPrefix);
-    if (tab === "diary") return p3 === this.settings.diaryFolder || p3.startsWith(diaryPrefix);
+    if (tab === "memo" /* Memo */) {
+      return p3 === this.settings.memoFolder || p3.startsWith(memoPrefix);
+    }
+    if (tab === "diary" /* Diary */) {
+      return p3 === this.settings.diaryFolder || p3.startsWith(diaryPrefix);
+    }
     return !p3.startsWith(memoPrefix) && !p3.startsWith(diaryPrefix);
   }
   mountEditorBackBar() {
