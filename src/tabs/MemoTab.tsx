@@ -37,7 +37,6 @@ export function MemoTab({
   const [loading, setLoading] = useState(true);
   const [menuItem, setMenuItem] = useState<MemoItem | null>(null);
   const [renameTarget, setRenameTarget] = useState<MemoItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<MemoItem | null>(null);
 
   const pageRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -161,9 +160,8 @@ export function MemoTab({
     setRenameTarget(null);
   };
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    const file = app.vault.getAbstractFileByPath(deleteTarget.path);
+  const handleDelete = async (target: MemoItem) => {
+    const file = app.vault.getAbstractFileByPath(target.path);
     try {
       if (file instanceof TFile) {
         await app.vault.trash(file, true);
@@ -172,7 +170,6 @@ export function MemoTab({
     } catch (err) {
       new Notice(`删除失败: ${String(err)}`);
     }
-    setDeleteTarget(null);
   };
 
   return (
@@ -277,7 +274,7 @@ export function MemoTab({
                 onClick={() => {
                   const target = menuItem;
                   setMenuItem(null);
-                  setDeleteTarget(target);
+                  handleDelete(target);
                 }}
               >
                 <span>删除</span>
@@ -295,17 +292,6 @@ export function MemoTab({
         placeholder="输入新名称"
         onCancel={() => setRenameTarget(null)}
         onConfirm={handleRename}
-      />
-
-      <PromptModal
-        open={deleteTarget !== null}
-        title="删除备忘录"
-        message={`确定将「${deleteTarget?.basename ?? ""}」移至回收站吗？`}
-        confirmText="删除"
-        danger
-        confirmOnly
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
       />
     </div>
   );

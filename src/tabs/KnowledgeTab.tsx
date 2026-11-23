@@ -820,10 +820,15 @@ export function KnowledgeTab({
               <button
                 type="button"
                 class="mh-action-item is-danger"
-                onClick={() => {
+                onClick={async () => {
                   const target = rowMenuTarget;
                   setRowMenuTarget(null);
-                  setPromptAction({ type: "delete", target });
+                  try {
+                    await app.vault.trash(target, true);
+                    new Notice("已移至回收站");
+                  } catch (err) {
+                    new Notice(`删除失败: ${String(err)}`);
+                  }
                 }}
               >
                 <span>删除</span>

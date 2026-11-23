@@ -1029,7 +1029,6 @@ function MemoTab({
   const [loading, setLoading] = d2(true);
   const [menuItem, setMenuItem] = d2(null);
   const [renameTarget, setRenameTarget] = d2(null);
-  const [deleteTarget, setDeleteTarget] = d2(null);
   const pageRef = A2(null);
   const sentinelRef = A2(null);
   const allFiles = T2(() => {
@@ -1138,9 +1137,8 @@ function MemoTab({
     }
     setRenameTarget(null);
   };
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    const file = app.vault.getAbstractFileByPath(deleteTarget.path);
+  const handleDelete = async (target) => {
+    const file = app.vault.getAbstractFileByPath(target.path);
     try {
       if (file instanceof import_obsidian3.TFile) {
         await app.vault.trash(file, true);
@@ -1149,7 +1147,6 @@ function MemoTab({
     } catch (err) {
       new import_obsidian3.Notice(`\u5220\u9664\u5931\u8D25: ${String(err)}`);
     }
-    setDeleteTarget(null);
   };
   return /* @__PURE__ */ u3("div", { class: "mh-tab-page mh-memo-page", children: [
     /* @__PURE__ */ u3(
@@ -1260,7 +1257,7 @@ function MemoTab({
                 onClick: () => {
                   const target = menuItem;
                   setMenuItem(null);
-                  setDeleteTarget(target);
+                  handleDelete(target);
                 },
                 children: [
                   /* @__PURE__ */ u3("span", { children: "\u5220\u9664" }),
@@ -1281,19 +1278,6 @@ function MemoTab({
         placeholder: "\u8F93\u5165\u65B0\u540D\u79F0",
         onCancel: () => setRenameTarget(null),
         onConfirm: handleRename
-      }
-    ),
-    /* @__PURE__ */ u3(
-      PromptModal,
-      {
-        open: deleteTarget !== null,
-        title: "\u5220\u9664\u5907\u5FD8\u5F55",
-        message: `\u786E\u5B9A\u5C06\u300C${deleteTarget?.basename ?? ""}\u300D\u79FB\u81F3\u56DE\u6536\u7AD9\u5417\uFF1F`,
-        confirmText: "\u5220\u9664",
-        danger: true,
-        confirmOnly: true,
-        onCancel: () => setDeleteTarget(null),
-        onConfirm: handleDelete
       }
     )
   ] });
@@ -1631,7 +1615,6 @@ function DiaryTab({
   const [dayDiaries, setDayDiaries] = d2([]);
   const [loading, setLoading] = d2(true);
   const [menuDiary, setMenuDiary] = d2(null);
-  const [deleteTarget, setDeleteTarget] = d2(null);
   const [lightbox, setLightbox] = d2(
     null
   );
@@ -1725,9 +1708,8 @@ date: ${selectedDate} ${hh}:${mm}
       new import_obsidian6.Notice(`\u65B0\u5EFA\u65E5\u8BB0\u5931\u8D25: ${String(err)}`);
     }
   };
-  const handleDeleteDiary = async () => {
-    if (!deleteTarget) return;
-    const file = app.vault.getAbstractFileByPath(deleteTarget.path);
+  const handleDeleteDiary = async (target) => {
+    const file = app.vault.getAbstractFileByPath(target.path);
     try {
       if (file instanceof import_obsidian6.TFile) {
         await app.vault.trash(file, true);
@@ -1736,7 +1718,6 @@ date: ${selectedDate} ${hh}:${mm}
     } catch (err) {
       new import_obsidian6.Notice(`\u5220\u9664\u5931\u8D25: ${String(err)}`);
     }
-    setDeleteTarget(null);
   };
   const clearLongPress = () => {
     if (longPressTimer.current !== null) {
@@ -1992,7 +1973,7 @@ date: ${selectedDate} ${hh}:${mm}
               onClick: () => {
                 const target = menuDiary;
                 setMenuDiary(null);
-                setDeleteTarget(target);
+                handleDeleteDiary(target);
               },
               children: [
                 /* @__PURE__ */ u3("span", { children: "\u5220\u9664" }),
@@ -2001,19 +1982,6 @@ date: ${selectedDate} ${hh}:${mm}
             }
           ) })
         ] })
-      }
-    ),
-    /* @__PURE__ */ u3(
-      PromptModal,
-      {
-        open: deleteTarget !== null,
-        title: "\u5220\u9664\u65E5\u8BB0",
-        message: `\u786E\u5B9A\u5C06\u65E5\u8BB0\u300C${deleteTarget?.basename ?? ""}\u300D\u79FB\u81F3\u56DE\u6536\u7AD9\u5417\uFF1F`,
-        confirmText: "\u5220\u9664",
-        danger: true,
-        confirmOnly: true,
-        onCancel: () => setDeleteTarget(null),
-        onConfirm: handleDeleteDiary
       }
     )
   ] });
@@ -2720,10 +2688,15 @@ function KnowledgeTab({
               {
                 type: "button",
                 class: "mh-action-item is-danger",
-                onClick: () => {
+                onClick: async () => {
                   const target = rowMenuTarget;
                   setRowMenuTarget(null);
-                  setPromptAction({ type: "delete", target });
+                  try {
+                    await app.vault.trash(target, true);
+                    new import_obsidian8.Notice("\u5DF2\u79FB\u81F3\u56DE\u6536\u7AD9");
+                  } catch (err) {
+                    new import_obsidian8.Notice(`\u5220\u9664\u5931\u8D25: ${String(err)}`);
+                  }
                 },
                 children: [
                   /* @__PURE__ */ u3("span", { children: "\u5220\u9664" }),

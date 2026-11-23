@@ -15,7 +15,6 @@ import {
 import { CalendarPanel } from "../components/CalendarPanel";
 import { ObsidianIcon } from "../components/ObsidianIcon";
 import { BottomSheet } from "../components/BottomSheet";
-import { PromptModal } from "../components/PromptModal";
 
 interface DiaryTabProps {
   app: App;
@@ -45,7 +44,6 @@ export function DiaryTab({
   const [dayDiaries, setDayDiaries] = useState<DiaryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [menuDiary, setMenuDiary] = useState<DiaryItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<DiaryItem | null>(null);
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(
     null
   );
@@ -147,9 +145,8 @@ export function DiaryTab({
     }
   };
 
-  const handleDeleteDiary = async () => {
-    if (!deleteTarget) return;
-    const file = app.vault.getAbstractFileByPath(deleteTarget.path);
+  const handleDeleteDiary = async (target: DiaryItem) => {
+    const file = app.vault.getAbstractFileByPath(target.path);
     try {
       if (file instanceof TFile) {
         await app.vault.trash(file, true);
@@ -158,7 +155,6 @@ export function DiaryTab({
     } catch (err) {
       new Notice(`删除失败: ${String(err)}`);
     }
-    setDeleteTarget(null);
   };
 
   const clearLongPress = () => {
@@ -420,7 +416,7 @@ export function DiaryTab({
                 onClick={() => {
                   const target = menuDiary;
                   setMenuDiary(null);
-                  setDeleteTarget(target);
+                  handleDeleteDiary(target);
                 }}
               >
                 <span>删除</span>
@@ -430,17 +426,6 @@ export function DiaryTab({
           </div>
         )}
       </BottomSheet>
-
-      <PromptModal
-        open={deleteTarget !== null}
-        title="删除日记"
-        message={`确定将日记「${deleteTarget?.basename ?? ""}」移至回收站吗？`}
-        confirmText="删除"
-        danger
-        confirmOnly
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={handleDeleteDiary}
-      />
     </div>
   );
 }
