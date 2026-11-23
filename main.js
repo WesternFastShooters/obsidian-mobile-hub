@@ -3031,13 +3031,29 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
   const [settings, setSettings] = d2(() => ({
     ...plugin.settings
   }));
+  const [mountedTabs, setMountedTabs] = d2(
+    () => /* @__PURE__ */ new Set([plugin.hubState.lastTab])
+  );
+  const [dragDx, setDragDx] = d2(0);
+  const [isDraggingPager, setIsDraggingPager] = d2(false);
+  const pagerRef = A2(null);
+  const swipeRef = A2(null);
   h2(() => {
     return subscribeRefresh(() => {
       setSettings({ ...plugin.settings });
       setRefreshTick((t3) => t3 + 1);
     });
   }, [plugin, subscribeRefresh]);
+  const ensureMounted = (tab) => {
+    setMountedTabs((prev) => {
+      if (prev.has(tab)) return prev;
+      const next = new Set(prev);
+      next.add(tab);
+      return next;
+    });
+  };
   const selectTab = (tab) => {
+    ensureMounted(tab);
     setActiveTab(tab);
     plugin.hubState.lastTab = tab;
   };
@@ -3054,43 +3070,84 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
     setRefreshTick((t3) => t3 + 1);
   };
   const hideMainTopbar = activeTab === "knowledge" && kbInSubPage;
-  const tabSwipeStart = A2(
-    null
+  const activeIndex = Math.max(
+    0,
+    TABS.findIndex((t3) => t3.id === activeTab)
   );
   const handleRootTouchStart = (e3) => {
     e3.stopPropagation();
     if (e3.touches.length !== 1) return;
     const target = e3.target;
-    if (target?.closest(".mh-sheet-backdrop, .mh-modal-backdrop, .mh-lightbox-backdrop")) {
-      tabSwipeStart.current = null;
-      return;
-    }
-    tabSwipeStart.current = {
-      x: e3.touches[0].clientX,
-      y: e3.touches[0].clientY,
-      inCalendar: Boolean(target?.closest(".mh-calendar"))
+    const blocked = hideMainTopbar || Boolean(
+      target?.closest(
+        ".mh-calendar, .mh-sheet-backdrop, .mh-modal-backdrop, .mh-lightbox-backdrop, .mh-kb-tree-view.is-dragging"
+      )
+    );
+    swipeRef.current = {
+      startX: e3.touches[0].clientX,
+      startY: e3.touches[0].clientY,
+      startTime: Date.now(),
+      locked: "none",
+      blocked
     };
   };
   const handleRootTouchMove = (e3) => {
     e3.stopPropagation();
+    const s3 = swipeRef.current;
+    if (!s3 || s3.blocked || e3.touches.length !== 1) return;
+    const dx = e3.touches[0].clientX - s3.startX;
+    const dy = e3.touches[0].clientY - s3.startY;
+    if (s3.locked === "none") {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dx) > Math.abs(dy) * 1.15) {
+        s3.locked = "horizontal";
+        setIsDraggingPager(true);
+        if (dx < 0 && activeIndex < TABS.length - 1) {
+          ensureMounted(TABS[activeIndex + 1].id);
+        } else if (dx > 0 && activeIndex > 0) {
+          ensureMounted(TABS[activeIndex - 1].id);
+        }
+      } else {
+        s3.locked = "vertical";
+        return;
+      }
+    }
+    if (s3.locked === "horizontal") {
+      let effectiveDx = dx;
+      if (activeIndex === 0 && dx > 0 || activeIndex === TABS.length - 1 && dx < 0) {
+        effectiveDx = dx * 0.25;
+      }
+      setDragDx(effectiveDx);
+    }
   };
   const handleRootTouchEnd = (e3) => {
     e3.stopPropagation();
-    if (!tabSwipeStart.current || e3.changedTouches.length !== 1) return;
-    const start = tabSwipeStart.current;
-    tabSwipeStart.current = null;
-    if (start.inCalendar || hideMainTopbar) return;
-    const dx = e3.changedTouches[0].clientX - start.x;
-    const dy = e3.changedTouches[0].clientY - start.y;
-    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-      const idx = TABS.findIndex((t3) => t3.id === activeTab);
-      if (dx < 0 && idx < TABS.length - 1) {
-        selectTab(TABS[idx + 1].id);
-      } else if (dx > 0 && idx > 0) {
-        selectTab(TABS[idx - 1].id);
+    const s3 = swipeRef.current;
+    swipeRef.current = null;
+    if (!s3 || s3.locked !== "horizontal") {
+      if (isDraggingPager) {
+        setIsDraggingPager(false);
+        setDragDx(0);
+      }
+      return;
+    }
+    const endX = e3.changedTouches.length > 0 ? e3.changedTouches[0].clientX : s3.startX;
+    const rawDx = endX - s3.startX;
+    const dt = Math.max(1, Date.now() - s3.startTime);
+    const velocity = Math.abs(rawDx) / dt;
+    const width = pagerRef.current?.clientWidth || window.innerWidth || 360;
+    const shouldSwitch = Math.abs(rawDx) > width * 0.22 || velocity > 0.35;
+    if (shouldSwitch) {
+      if (rawDx < 0 && activeIndex < TABS.length - 1) {
+        selectTab(TABS[activeIndex + 1].id);
+      } else if (rawDx > 0 && activeIndex > 0) {
+        selectTab(TABS[activeIndex - 1].id);
       }
     }
+    setIsDraggingPager(false);
+    setDragDx(0);
   };
+  const trackTransform = isDraggingPager ? `translate3d(calc(${-activeIndex * 100}% + ${dragDx}px), 0, 0)` : `translate3d(${-activeIndex * 100}%, 0, 0)`;
   return /* @__PURE__ */ u3(
     "div",
     {
@@ -3099,6 +3156,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
       onTouchStart: handleRootTouchStart,
       onTouchMove: handleRootTouchMove,
       onTouchEnd: handleRootTouchEnd,
+      onTouchCancel: handleRootTouchEnd,
       children: [
         !hideMainTopbar && /* @__PURE__ */ u3("header", { class: "mh-topbar", children: [
           /* @__PURE__ */ u3(
@@ -3134,50 +3192,57 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
             }
           )
         ] }),
-        /* @__PURE__ */ u3("main", { class: "mh-content", children: [
-          activeTab === "memo" && /* @__PURE__ */ u3(
-            MemoTab,
-            {
-              app: plugin.app,
-              settings,
-              hubState: plugin.hubState,
-              refreshTick
-            }
-          ),
-          activeTab === "diary" && /* @__PURE__ */ u3(
-            DiaryTab,
-            {
-              app: plugin.app,
-              settings,
-              hubState: plugin.hubState,
-              refreshTick
-            }
-          ),
-          activeTab === "task" && /* @__PURE__ */ u3(
-            TaskTab,
-            {
-              app: plugin.app,
-              settings,
-              hubState: plugin.hubState,
-              refreshTick
-            }
-          ),
-          activeTab === "knowledge" && /* @__PURE__ */ u3(
-            KnowledgeTab,
-            {
-              app: plugin.app,
-              settings,
-              hubState: plugin.hubState,
-              refreshTick,
-              onRootPathChange: (path) => {
-                plugin.hubState.kbRootPath = path;
-                setKbInSubPage(Boolean(path));
-              },
-              onUpdateCustomOrder: handleUpdateCustomOrder,
-              onReplaceCustomOrderMap: handleReplaceCustomOrderMap
-            }
-          )
-        ] })
+        /* @__PURE__ */ u3("main", { ref: pagerRef, class: "mh-content mh-pager-viewport", children: /* @__PURE__ */ u3(
+          "div",
+          {
+            class: `mh-pager-track ${isDraggingPager ? "is-dragging" : ""}`,
+            style: { transform: trackTransform },
+            children: [
+              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("memo") && /* @__PURE__ */ u3(
+                MemoTab,
+                {
+                  app: plugin.app,
+                  settings,
+                  hubState: plugin.hubState,
+                  refreshTick
+                }
+              ) }),
+              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("diary") && /* @__PURE__ */ u3(
+                DiaryTab,
+                {
+                  app: plugin.app,
+                  settings,
+                  hubState: plugin.hubState,
+                  refreshTick
+                }
+              ) }),
+              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("task") && /* @__PURE__ */ u3(
+                TaskTab,
+                {
+                  app: plugin.app,
+                  settings,
+                  hubState: plugin.hubState,
+                  refreshTick
+                }
+              ) }),
+              /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("knowledge") && /* @__PURE__ */ u3(
+                KnowledgeTab,
+                {
+                  app: plugin.app,
+                  settings,
+                  hubState: plugin.hubState,
+                  refreshTick,
+                  onRootPathChange: (path) => {
+                    plugin.hubState.kbRootPath = path;
+                    setKbInSubPage(Boolean(path));
+                  },
+                  onUpdateCustomOrder: handleUpdateCustomOrder,
+                  onReplaceCustomOrderMap: handleReplaceCustomOrderMap
+                }
+              ) })
+            ]
+          }
+        ) })
       ]
     }
   );

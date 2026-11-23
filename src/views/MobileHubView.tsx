@@ -34,6 +34,24 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
     ...plugin.settings,
   }));
 
+  // Lazy-mount tabs so startup stays fast, while mounting adjacent tab immediately on swipe
+  const [mountedTabs, setMountedTabs] = useState<Set<HubTabId>>(
+    () => new Set([plugin.hubState.lastTab])
+  );
+
+  // Interactive ViewPager drag state
+  const [dragDx, setDragDx] = useState(0);
+  const [isDraggingPager, setIsDraggingPager] = useState(false);
+
+  const pagerRef = useRef<HTMLDivElement>(null);
+  const swipeRef = useRef<{
+    startX: number;
+    startY: number;
+    startTime: number;
+    locked: "none" | "horizontal" | "vertical";
+    blocked: boolean;
+  } | null>(null);
+
   useEffect(() => {
     return subscribeRefresh(() => {
       setSettings({ ...plugin.settings });
@@ -41,7 +59,17 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
     });
   }, [plugin, subscribeRefresh]);
 
+  const ensureMounted = (tab: HubTabId) => {
+    setMountedTabs((prev) => {
+      if (prev.has(tab)) return prev;
+      const next = new Set(prev);
+      next.add(tab);
+      return next;
+    });
+  };
+
   const selectTab = (tab: HubTabId) => {
+    ensureMounted(tab);
     setActiveTab(tab);
     plugin.hubState.lastTab = tab;
   };
@@ -66,51 +94,109 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
   };
 
   const hideMainTopbar = activeTab === "knowledge" && kbInSubPage;
-  const tabSwipeStart = useRef<{ x: number; y: number; inCalendar: boolean } | null>(
-    null
+  const activeIndex = Math.max(
+    0,
+    TABS.findIndex((t) => t.id === activeTab)
   );
 
   const handleRootTouchStart = (e: TouchEvent) => {
-    // Prevent Obsidian Mobile's outer left/right drawer listeners from seeing touches inside Mobile Hub
+    // Block Obsidian Mobile's outer left/right drawer listeners
     e.stopPropagation();
     if (e.touches.length !== 1) return;
+
     const target = e.target as HTMLElement | null;
-    if (target?.closest(".mh-sheet-backdrop, .mh-modal-backdrop, .mh-lightbox-backdrop")) {
-      tabSwipeStart.current = null;
-      return;
-    }
-    tabSwipeStart.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-      inCalendar: Boolean(target?.closest(".mh-calendar")),
+    const blocked =
+      hideMainTopbar ||
+      Boolean(
+        target?.closest(
+          ".mh-calendar, .mh-sheet-backdrop, .mh-modal-backdrop, .mh-lightbox-backdrop, .mh-kb-tree-view.is-dragging"
+        )
+      );
+
+    swipeRef.current = {
+      startX: e.touches[0].clientX,
+      startY: e.touches[0].clientY,
+      startTime: Date.now(),
+      locked: "none",
+      blocked,
     };
   };
 
   const handleRootTouchMove = (e: TouchEvent) => {
-    // Always stop propagation to block native left (file) and right (backlinks) drawers
     e.stopPropagation();
+    const s = swipeRef.current;
+    if (!s || s.blocked || e.touches.length !== 1) return;
+
+    const dx = e.touches[0].clientX - s.startX;
+    const dy = e.touches[0].clientY - s.startY;
+
+    if (s.locked === "none") {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dx) > Math.abs(dy) * 1.15) {
+        s.locked = "horizontal";
+        setIsDraggingPager(true);
+        // Pre-mount neighbor tab in swipe direction so it slides in live
+        if (dx < 0 && activeIndex < TABS.length - 1) {
+          ensureMounted(TABS[activeIndex + 1].id);
+        } else if (dx > 0 && activeIndex > 0) {
+          ensureMounted(TABS[activeIndex - 1].id);
+        }
+      } else {
+        s.locked = "vertical";
+        return;
+      }
+    }
+
+    if (s.locked === "horizontal") {
+      // Rubber-band damping at first/last tab edges
+      let effectiveDx = dx;
+      if (
+        (activeIndex === 0 && dx > 0) ||
+        (activeIndex === TABS.length - 1 && dx < 0)
+      ) {
+        effectiveDx = dx * 0.25;
+      }
+      setDragDx(effectiveDx);
+    }
   };
 
   const handleRootTouchEnd = (e: TouchEvent) => {
     e.stopPropagation();
-    if (!tabSwipeStart.current || e.changedTouches.length !== 1) return;
-    const start = tabSwipeStart.current;
-    tabSwipeStart.current = null;
+    const s = swipeRef.current;
+    swipeRef.current = null;
 
-    // Do not switch tabs if swiping inside calendar or inside Knowledge Base subpage
-    if (start.inCalendar || hideMainTopbar) return;
+    if (!s || s.locked !== "horizontal") {
+      if (isDraggingPager) {
+        setIsDraggingPager(false);
+        setDragDx(0);
+      }
+      return;
+    }
 
-    const dx = e.changedTouches[0].clientX - start.x;
-    const dy = e.changedTouches[0].clientY - start.y;
-    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-      const idx = TABS.findIndex((t) => t.id === activeTab);
-      if (dx < 0 && idx < TABS.length - 1) {
-        selectTab(TABS[idx + 1].id);
-      } else if (dx > 0 && idx > 0) {
-        selectTab(TABS[idx - 1].id);
+    const endX =
+      e.changedTouches.length > 0 ? e.changedTouches[0].clientX : s.startX;
+    const rawDx = endX - s.startX;
+    const dt = Math.max(1, Date.now() - s.startTime);
+    const velocity = Math.abs(rawDx) / dt; // px/ms
+    const width = pagerRef.current?.clientWidth || window.innerWidth || 360;
+
+    const shouldSwitch = Math.abs(rawDx) > width * 0.22 || velocity > 0.35;
+
+    if (shouldSwitch) {
+      if (rawDx < 0 && activeIndex < TABS.length - 1) {
+        selectTab(TABS[activeIndex + 1].id);
+      } else if (rawDx > 0 && activeIndex > 0) {
+        selectTab(TABS[activeIndex - 1].id);
       }
     }
+
+    setIsDraggingPager(false);
+    setDragDx(0);
   };
+
+  const trackTransform = isDraggingPager
+    ? `translate3d(calc(${-activeIndex * 100}% + ${dragDx}px), 0, 0)`
+    : `translate3d(${-activeIndex * 100}%, 0, 0)`;
 
   return (
     <div
@@ -119,6 +205,7 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
       onTouchStart={handleRootTouchStart}
       onTouchMove={handleRootTouchMove}
       onTouchEnd={handleRootTouchEnd}
+      onTouchCancel={handleRootTouchEnd}
     >
       {!hideMainTopbar && (
         <header class="mh-topbar">
@@ -159,45 +246,61 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
         </header>
       )}
 
-      <main class="mh-content">
-        {activeTab === "memo" && (
-          <MemoTab
-            app={plugin.app}
-            settings={settings}
-            hubState={plugin.hubState}
-            refreshTick={refreshTick}
-          />
-        )}
-        {activeTab === "diary" && (
-          <DiaryTab
-            app={plugin.app}
-            settings={settings}
-            hubState={plugin.hubState}
-            refreshTick={refreshTick}
-          />
-        )}
-        {activeTab === "task" && (
-          <TaskTab
-            app={plugin.app}
-            settings={settings}
-            hubState={plugin.hubState}
-            refreshTick={refreshTick}
-          />
-        )}
-        {activeTab === "knowledge" && (
-          <KnowledgeTab
-            app={plugin.app}
-            settings={settings}
-            hubState={plugin.hubState}
-            refreshTick={refreshTick}
-            onRootPathChange={(path) => {
-              plugin.hubState.kbRootPath = path;
-              setKbInSubPage(Boolean(path));
-            }}
-            onUpdateCustomOrder={handleUpdateCustomOrder}
-            onReplaceCustomOrderMap={handleReplaceCustomOrderMap}
-          />
-        )}
+      <main ref={pagerRef} class="mh-content mh-pager-viewport">
+        <div
+          class={`mh-pager-track ${isDraggingPager ? "is-dragging" : ""}`}
+          style={{ transform: trackTransform }}
+        >
+          <section class="mh-pager-slide">
+            {mountedTabs.has("memo") && (
+              <MemoTab
+                app={plugin.app}
+                settings={settings}
+                hubState={plugin.hubState}
+                refreshTick={refreshTick}
+              />
+            )}
+          </section>
+
+          <section class="mh-pager-slide">
+            {mountedTabs.has("diary") && (
+              <DiaryTab
+                app={plugin.app}
+                settings={settings}
+                hubState={plugin.hubState}
+                refreshTick={refreshTick}
+              />
+            )}
+          </section>
+
+          <section class="mh-pager-slide">
+            {mountedTabs.has("task") && (
+              <TaskTab
+                app={plugin.app}
+                settings={settings}
+                hubState={plugin.hubState}
+                refreshTick={refreshTick}
+              />
+            )}
+          </section>
+
+          <section class="mh-pager-slide">
+            {mountedTabs.has("knowledge") && (
+              <KnowledgeTab
+                app={plugin.app}
+                settings={settings}
+                hubState={plugin.hubState}
+                refreshTick={refreshTick}
+                onRootPathChange={(path) => {
+                  plugin.hubState.kbRootPath = path;
+                  setKbInSubPage(Boolean(path));
+                }}
+                onUpdateCustomOrder={handleUpdateCustomOrder}
+                onReplaceCustomOrderMap={handleReplaceCustomOrderMap}
+              />
+            )}
+          </section>
+        </div>
       </main>
     </div>
   );

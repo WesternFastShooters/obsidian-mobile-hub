@@ -222,9 +222,40 @@ body.is-mobile.mh-editor-active .workspace-leaf.mod-active .view-content {
   flex-direction: column;
 }
 
+/* Interactive horizontal ViewPager track */
+.mh-pager-viewport {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.mh-pager-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mh-pager-track.is-dragging {
+  transition: none;
+}
+
+.mh-pager-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .mh-tab-page {
   flex: 1;
   min-height: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -261,9 +292,9 @@ body.is-mobile.mh-editor-active .workspace-leaf.mod-active .view-content {
   color: var(--text-faint);
 }
 
-/* Floating Action Button (Memo / Diary / Task) */
+/* Floating Action Button (Memo / Diary / Task) — absolute inside slide so it slides naturally with each tab */
 body .mh-root .mh-fab {
-  position: fixed;
+  position: absolute;
   right: 20px;
   bottom: calc(var(--mh-safe-bottom, 0px) + 22px);
   width: 52px !important;
@@ -1328,7 +1359,7 @@ body .mh-root .mh-memo-page .mh-fab:active {
 
 /* Floating Bottom Pill — ONLY in Knowledge Base tab (Search + Plus) */
 .mh-kb-floating-pill {
-  position: fixed;
+  position: absolute;
   left: 50%;
   transform: translateX(-50%);
   bottom: calc(var(--mh-safe-bottom, 0px) + 20px);
