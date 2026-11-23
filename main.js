@@ -109,8 +109,8 @@ function H() {
   }
 }
 function L(n2, l3, u4, t3, i4, r3, o3, e3, f4, c3, a3) {
-  var s3, h3, p3, v3, y3, _2, g2 = t3 && t3.__k || w, m3 = l3.length;
-  for (f4 = T(u4, l3, g2, f4, m3), s3 = 0; s3 < m3; s3++) null != (p3 = u4.__k[s3]) && (h3 = -1 != p3.__i && g2[p3.__i] || d, p3.__i = s3, _2 = q(n2, p3, h3, i4, r3, o3, e3, f4, c3, a3), v3 = p3.__e, p3.ref && h3.ref != p3.ref && (h3.ref && J(h3.ref, null, p3), a3.push(p3.ref, p3.__c || v3, p3)), null == y3 && null != v3 && (y3 = v3), 4 & p3.__u ? (f4 = j(p3, f4, n2), h3.__e && (h3.__e = null)) : "function" == typeof p3.type && void 0 !== _2 ? f4 = _2 : v3 && (f4 = v3.nextSibling), p3.__u &= -7);
+  var s3, h3, p3, v3, y3, _3, g4 = t3 && t3.__k || w, m3 = l3.length;
+  for (f4 = T(u4, l3, g4, f4, m3), s3 = 0; s3 < m3; s3++) null != (p3 = u4.__k[s3]) && (h3 = -1 != p3.__i && g4[p3.__i] || d, p3.__i = s3, _3 = q(n2, p3, h3, i4, r3, o3, e3, f4, c3, a3), v3 = p3.__e, p3.ref && h3.ref != p3.ref && (h3.ref && J(h3.ref, null, p3), a3.push(p3.ref, p3.__c || v3, p3)), null == y3 && null != v3 && (y3 = v3), 4 & p3.__u ? (f4 = j(p3, f4, n2), h3.__e && (h3.__e = null)) : "function" == typeof p3.type && void 0 !== _3 ? f4 = _3 : v3 && (f4 = v3.nextSibling), p3.__u &= -7);
   return u4.__e = y3, f4;
 }
 function T(n2, l3, u4, t3, i4) {
@@ -130,6 +130,11 @@ function j(n2, l3, u4) {
     l3 = l3 && l3.nextSibling;
   } while (null != l3 && 8 == l3.nodeType);
   return l3;
+}
+function F(n2, l3) {
+  return l3 = l3 || [], null == n2 || "boolean" == typeof n2 || (g(n2) ? n2.some(function(n3) {
+    F(n3, l3);
+  }) : l3.push(n2)), l3;
 }
 function O(n2, l3, u4, t3) {
   var i4, r3, o3, e3 = n2.key, f4 = n2.type, c3 = l3[u4], a3 = null != c3 && 0 == (2 & c3.__u);
@@ -171,35 +176,35 @@ function V(n2) {
   };
 }
 function q(n2, u4, t3, i4, r3, o3, e3, f4, c3, a3) {
-  var s3, h3, p3, v3, y3, d3, _2, k3, x2, M, I2, P2, A3, H2, T3, j3, F = u4.type;
+  var s3, h3, p3, v3, y3, d3, _3, k3, x3, M3, I2, P4, A4, H3, T4, j4, F3 = u4.type;
   if (void 0 !== u4.constructor) return null;
   128 & t3.__u && (c3 = !!(32 & t3.__u), o3 = [f4 = u4.__e = t3.__e]), (s3 = l.__b) && s3(u4);
-  n: if ("function" == typeof F) {
+  n: if ("function" == typeof F3) {
     h3 = e3.length;
     try {
-      if (x2 = u4.props, M = F.prototype && F.prototype.render, I2 = (s3 = F.contextType) && i4[s3.__c], P2 = s3 ? I2 ? I2.props.value : s3.__ : i4, t3.__c ? k3 = (p3 = u4.__c = t3.__c).__ = p3.__E : (M ? u4.__c = p3 = new F(x2, P2) : (u4.__c = p3 = new C(x2, P2), p3.constructor = F, p3.render = Q), I2 && I2.sub(p3), p3.state || (p3.state = {}), p3.__n = i4, v3 = p3.__d = true, p3.__h = [], p3._sb = []), M && null == p3.__s && (p3.__s = p3.state), M && null != F.getDerivedStateFromProps && (p3.__s == p3.state && (p3.__s = m({}, p3.__s)), m(p3.__s, F.getDerivedStateFromProps(x2, p3.__s))), y3 = p3.props, d3 = p3.state, p3.__v = u4, v3) M && null == F.getDerivedStateFromProps && null != p3.componentWillMount && p3.componentWillMount(), M && null != p3.componentDidMount && p3.__h.push(p3.componentDidMount);
+      if (x3 = u4.props, M3 = F3.prototype && F3.prototype.render, I2 = (s3 = F3.contextType) && i4[s3.__c], P4 = s3 ? I2 ? I2.props.value : s3.__ : i4, t3.__c ? k3 = (p3 = u4.__c = t3.__c).__ = p3.__E : (M3 ? u4.__c = p3 = new F3(x3, P4) : (u4.__c = p3 = new C(x3, P4), p3.constructor = F3, p3.render = Q), I2 && I2.sub(p3), p3.state || (p3.state = {}), p3.__n = i4, v3 = p3.__d = true, p3.__h = [], p3._sb = []), M3 && null == p3.__s && (p3.__s = p3.state), M3 && null != F3.getDerivedStateFromProps && (p3.__s == p3.state && (p3.__s = m({}, p3.__s)), m(p3.__s, F3.getDerivedStateFromProps(x3, p3.__s))), y3 = p3.props, d3 = p3.state, p3.__v = u4, v3) M3 && null == F3.getDerivedStateFromProps && null != p3.componentWillMount && p3.componentWillMount(), M3 && null != p3.componentDidMount && p3.__h.push(p3.componentDidMount);
       else {
-        if (M && null == F.getDerivedStateFromProps && x2 !== y3 && null != p3.componentWillReceiveProps && p3.componentWillReceiveProps(x2, P2), u4.__v == t3.__v || !p3.__e && null != p3.shouldComponentUpdate && false === p3.shouldComponentUpdate(x2, p3.__s, P2)) {
-          u4.__v != t3.__v && (p3.props = x2, p3.state = p3.__s, p3.__d = false), u4.__e = t3.__e, u4.__k = t3.__k, u4.__k.some(function(n3) {
+        if (M3 && null == F3.getDerivedStateFromProps && x3 !== y3 && null != p3.componentWillReceiveProps && p3.componentWillReceiveProps(x3, P4), u4.__v == t3.__v || !p3.__e && null != p3.shouldComponentUpdate && false === p3.shouldComponentUpdate(x3, p3.__s, P4)) {
+          u4.__v != t3.__v && (p3.props = x3, p3.state = p3.__s, p3.__d = false), u4.__e = t3.__e, u4.__k = t3.__k, u4.__k.some(function(n3) {
             n3 && (n3.__ = u4);
           }), w.push.apply(p3.__h, p3._sb), p3._sb = [], p3.__h.length && e3.push(p3), f4 = $(t3);
           break n;
         }
-        null != p3.componentWillUpdate && p3.componentWillUpdate(x2, p3.__s, P2), M && null != p3.componentDidUpdate && p3.__h.push(function() {
-          p3.componentDidUpdate(y3, d3, _2);
+        null != p3.componentWillUpdate && p3.componentWillUpdate(x3, p3.__s, P4), M3 && null != p3.componentDidUpdate && p3.__h.push(function() {
+          p3.componentDidUpdate(y3, d3, _3);
         });
       }
-      if (p3.context = P2, p3.props = x2, p3.__P = n2, p3.__e = false, A3 = l.__r, H2 = 0, M) p3.state = p3.__s, p3.__d = false, A3 && A3(u4), s3 = p3.render(p3.props, p3.state, p3.context), w.push.apply(p3.__h, p3._sb), p3._sb = [];
+      if (p3.context = P4, p3.props = x3, p3.__P = n2, p3.__e = false, A4 = l.__r, H3 = 0, M3) p3.state = p3.__s, p3.__d = false, A4 && A4(u4), s3 = p3.render(p3.props, p3.state, p3.context), w.push.apply(p3.__h, p3._sb), p3._sb = [];
       else do {
-        p3.__d = false, A3 && A3(u4), s3 = p3.render(p3.props, p3.state, p3.context), p3.state = p3.__s;
-      } while (p3.__d && ++H2 < 25);
-      p3.state = p3.__s, null != p3.getChildContext && (i4 = m(m({}, i4), p3.getChildContext())), M && !v3 && null != p3.getSnapshotBeforeUpdate && (_2 = p3.getSnapshotBeforeUpdate(y3, d3)), T3 = null != s3 && s3.type === S && null == s3.key ? E(s3.props.children) : s3, f4 = L(n2, g(T3) ? T3 : [T3], u4, t3, i4, r3, o3, e3, f4, c3, a3), p3.base = u4.__e, u4.__u &= -161, p3.__h.length && e3.push(p3), k3 && (p3.__E = p3.__ = null);
+        p3.__d = false, A4 && A4(u4), s3 = p3.render(p3.props, p3.state, p3.context), p3.state = p3.__s;
+      } while (p3.__d && ++H3 < 25);
+      p3.state = p3.__s, null != p3.getChildContext && (i4 = m(m({}, i4), p3.getChildContext())), M3 && !v3 && null != p3.getSnapshotBeforeUpdate && (_3 = p3.getSnapshotBeforeUpdate(y3, d3)), T4 = null != s3 && s3.type === S && null == s3.key ? E(s3.props.children) : s3, f4 = L(n2, g(T4) ? T4 : [T4], u4, t3, i4, r3, o3, e3, f4, c3, a3), p3.base = u4.__e, u4.__u &= -161, p3.__h.length && e3.push(p3), k3 && (p3.__E = p3.__ = null);
     } catch (n3) {
       if (e3.length = h3, u4.__v = null, c3 || null != o3) {
         if (n3.then) {
           for (u4.__u |= c3 ? 160 : 128; f4 && 8 == f4.nodeType && f4.nextSibling; ) f4 = f4.nextSibling;
           null != o3 && (o3[o3.indexOf(f4)] = null), u4.__e = f4;
-        } else if (null != o3) for (j3 = o3.length; j3--; ) b(o3[j3]);
+        } else if (null != o3) for (j4 = o3.length; j4--; ) b(o3[j4]);
       } else u4.__e = t3.__e;
       null == u4.__k && (u4.__k = t3.__k || []), n3.then || B(u4), l.__e(n3, u4, t3);
     }
@@ -225,25 +230,25 @@ function E(n2) {
   return "object" != typeof n2 || null == n2 || n2.__b > 0 ? n2 : g(n2) ? n2.map(E) : void 0 !== n2.constructor ? null : m({}, n2);
 }
 function G(u4, t3, i4, r3, o3, e3, f4, c3, a3) {
-  var s3, h3, p3, v3, y3, w3, _2, m3 = i4.props || d, k3 = t3.props, x2 = t3.type;
-  if ("svg" == x2 ? o3 = "http://www.w3.org/2000/svg" : "math" == x2 ? o3 = "http://www.w3.org/1998/Math/MathML" : o3 || (o3 = "http://www.w3.org/1999/xhtml"), null != e3) {
-    for (s3 = 0; s3 < e3.length; s3++) if ((y3 = e3[s3]) && "setAttribute" in y3 == !!x2 && (x2 ? y3.localName == x2 : 3 == y3.nodeType)) {
+  var s3, h3, p3, v3, y3, w3, _3, m3 = i4.props || d, k3 = t3.props, x3 = t3.type;
+  if ("svg" == x3 ? o3 = "http://www.w3.org/2000/svg" : "math" == x3 ? o3 = "http://www.w3.org/1998/Math/MathML" : o3 || (o3 = "http://www.w3.org/1999/xhtml"), null != e3) {
+    for (s3 = 0; s3 < e3.length; s3++) if ((y3 = e3[s3]) && "setAttribute" in y3 == !!x3 && (x3 ? y3.localName == x3 : 3 == y3.nodeType)) {
       u4 = y3, e3[s3] = null;
       break;
     }
   }
   if (null == u4) {
-    if (null == x2) return document.createTextNode(k3);
-    u4 = document.createElementNS(o3, x2, k3.is && k3), c3 && (l.__m && l.__m(t3, e3), c3 = false), e3 = null;
+    if (null == x3) return document.createTextNode(k3);
+    u4 = document.createElementNS(o3, x3, k3.is && k3), c3 && (l.__m && l.__m(t3, e3), c3 = false), e3 = null;
   }
-  if (null == x2) m3 === k3 || c3 && u4.data == k3 || (u4.data = k3);
+  if (null == x3) m3 === k3 || c3 && u4.data == k3 || (u4.data = k3);
   else {
-    if (e3 = "textarea" == x2 && null != k3.defaultValue ? null : e3 && n.call(u4.childNodes), !c3 && null != e3) for (m3 = {}, s3 = 0; s3 < u4.attributes.length; s3++) m3[(y3 = u4.attributes[s3]).name] = y3.value;
+    if (e3 = "textarea" == x3 && null != k3.defaultValue ? null : e3 && n.call(u4.childNodes), !c3 && null != e3) for (m3 = {}, s3 = 0; s3 < u4.attributes.length; s3++) m3[(y3 = u4.attributes[s3]).name] = y3.value;
     for (s3 in m3) y3 = m3[s3], "dangerouslySetInnerHTML" == s3 ? p3 = y3 : "children" == s3 || s3 in k3 || "value" == s3 && "defaultValue" in k3 || "checked" == s3 && "defaultChecked" in k3 || N(u4, s3, null, y3, o3);
-    for (s3 in k3) y3 = k3[s3], "children" == s3 ? v3 = y3 : "dangerouslySetInnerHTML" == s3 ? h3 = y3 : "value" == s3 ? w3 = y3 : "checked" == s3 ? _2 = y3 : c3 && "function" != typeof y3 || m3[s3] === y3 || N(u4, s3, y3, m3[s3], o3);
+    for (s3 in k3) y3 = k3[s3], "children" == s3 ? v3 = y3 : "dangerouslySetInnerHTML" == s3 ? h3 = y3 : "value" == s3 ? w3 = y3 : "checked" == s3 ? _3 = y3 : c3 && "function" != typeof y3 || m3[s3] === y3 || N(u4, s3, y3, m3[s3], o3);
     if (h3) c3 || p3 && (h3.__html == p3.__html || h3.__html == u4.innerHTML) || (u4.innerHTML = h3.__html), t3.__k = [];
-    else if (p3 && (u4.innerHTML = ""), L("template" == t3.type ? u4.content : u4, g(v3) ? v3 : [v3], t3, i4, r3, "foreignObject" == x2 ? "http://www.w3.org/1999/xhtml" : o3, e3, f4, e3 ? e3[0] : i4.__k && $(i4, 0), c3, a3), null != e3) for (s3 = e3.length; s3--; ) b(e3[s3]);
-    c3 && "textarea" != x2 || (s3 = "value", "progress" == x2 && null == w3 ? u4.removeAttribute("value") : null != w3 && (w3 !== u4[s3] || "progress" == x2 && !w3 || "option" == x2 && w3 != m3[s3]) && N(u4, s3, w3, m3[s3], o3), s3 = "checked", null != _2 && _2 != u4[s3] && N(u4, s3, _2, m3[s3], o3));
+    else if (p3 && (u4.innerHTML = ""), L("template" == t3.type ? u4.content : u4, g(v3) ? v3 : [v3], t3, i4, r3, "foreignObject" == x3 ? "http://www.w3.org/1999/xhtml" : o3, e3, f4, e3 ? e3[0] : i4.__k && $(i4, 0), c3, a3), null != e3) for (s3 = e3.length; s3--; ) b(e3[s3]);
+    c3 && "textarea" != x3 || (s3 = "value", "progress" == x3 && null == w3 ? u4.removeAttribute("value") : null != w3 && (w3 !== u4[s3] || "progress" == x3 && !w3 || "option" == x3 && w3 != m3[s3]) && N(u4, s3, w3, m3[s3], o3), s3 = "checked", null != _3 && _3 != u4[s3] && N(u4, s3, _3, m3[s3], o3));
   }
   return u4;
 }
@@ -654,6 +659,202 @@ function ObsidianIcon({ name, size = 18, className = "" }) {
 // src/tabs/MemoTab.tsx
 var import_obsidian3 = require("obsidian");
 
+// node_modules/preact/compat/dist/compat.module.js
+function g3(n2, t3) {
+  for (var e3 in t3) n2[e3] = t3[e3];
+  return n2;
+}
+function E2(n2, t3) {
+  for (var e3 in n2) if ("__source" !== e3 && !(e3 in t3)) return true;
+  for (var r3 in t3) if ("__source" !== r3 && n2[r3] !== t3[r3]) return true;
+  return false;
+}
+function M2(n2, t3) {
+  this.props = n2, this.context = t3;
+}
+(M2.prototype = new C()).isPureReactComponent = true, M2.prototype.shouldComponentUpdate = function(n2, t3) {
+  return E2(this.props, n2) || E2(this.state, t3);
+};
+var T3 = l.__b;
+l.__b = function(n2) {
+  n2.type && n2.type.__f && n2.ref && (n2.props.ref = n2.ref, n2.ref = null), T3 && T3(n2);
+};
+var A3 = "undefined" != typeof Symbol && Symbol.for && Symbol.for("react.forward_ref") || 3911;
+var O2 = l.__e;
+l.__e = function(n2, t3, e3, r3) {
+  if (n2.then) {
+    for (var u4, o3 = t3; o3 = o3.__; ) if ((u4 = o3.__c) && u4.__c) return null == t3.__e && (t3.__e = e3.__e, t3.__k = e3.__k || []), u4.__c(n2, t3);
+  }
+  O2(n2, t3, e3, r3);
+};
+var U2 = l.unmount;
+function V2(n2, t3, e3) {
+  return n2 && (n2.__c && n2.__c.__H && (n2.__c.__H.__.forEach(function(n3) {
+    "function" == typeof n3.__c && n3.__c();
+  }), n2.__c.__H = null), null != (n2 = g3({}, n2)).__c && (n2.__c.__P === e3 && (n2.__c.__P = t3), n2.__c.__e = true, n2.__c = null), n2.__k = n2.__k && n2.__k.map(function(n3) {
+    return V2(n3, t3, e3);
+  })), n2;
+}
+function W2(n2, t3, e3) {
+  return n2 && e3 && (n2.__v = null, n2.__k = n2.__k && n2.__k.map(function(n3) {
+    return W2(n3, t3, e3);
+  }), n2.__c && n2.__c.__P === t3 && (n2.__e && e3.appendChild(n2.__e), n2.__c.__e = true, n2.__c.__P = e3)), n2;
+}
+function P3() {
+  this.__u = 0, this.o = null, this.__b = null;
+}
+function j3(n2) {
+  var t3 = n2.__ && n2.__.__c;
+  return t3 && t3.__a && t3.__a(n2);
+}
+function B3() {
+  this.i = null, this.l = null;
+}
+l.unmount = function(n2) {
+  var t3 = n2.__c;
+  t3 && (t3.__z = true), t3 && t3.__R && t3.__R(), t3 && 32 & n2.__u && (n2.type = null), U2 && U2(n2);
+}, (P3.prototype = new C()).__c = function(n2, t3) {
+  var e3 = t3.__c, r3 = this;
+  null == r3.o && (r3.o = []), r3.o.push(e3);
+  var u4 = j3(r3.__v), o3 = false, i4 = function() {
+    o3 || r3.__z || (o3 = true, e3.__R = null, u4 ? u4(f4) : f4());
+  };
+  e3.__R = i4;
+  var l3 = e3.__P;
+  e3.__P = null;
+  var f4 = function() {
+    if (!--r3.__u) {
+      if (r3.state.__a) {
+        var n3 = r3.state.__a;
+        r3.__v.__k[0] = W2(n3, n3.__c.__P, n3.__c.__O);
+      }
+      var t4;
+      for (r3.setState({ __a: r3.__b = null }); t4 = r3.o.pop(); ) t4.__P = l3, t4.forceUpdate();
+    }
+  };
+  r3.__u++ || 32 & t3.__u || r3.setState({ __a: r3.__b = r3.__v.__k[0] }), n2.then(i4, i4);
+}, P3.prototype.componentWillUnmount = function() {
+  this.o = [];
+}, P3.prototype.render = function(n2, e3) {
+  if (this.__b) {
+    if (this.__v.__k) {
+      var r3 = document.createElement("div"), o3 = this.__v.__k[0].__c;
+      this.__v.__k[0] = V2(this.__b, r3, o3.__O = o3.__P);
+    }
+    this.__b = null;
+  }
+  var i4 = e3.__a && k(S, null, n2.fallback);
+  return i4 && (i4.__u &= -33), [k(S, null, e3.__a ? null : n2.children), i4];
+};
+var H2 = function(n2, t3, e3) {
+  if (++e3[1] === e3[0] && n2.l.delete(t3), n2.props.revealOrder && ("t" !== n2.props.revealOrder[0] || !n2.l.size)) for (e3 = n2.i; e3; ) {
+    for (; e3.length > 3; ) e3.pop()();
+    if (e3[1] < e3[0]) break;
+    n2.i = e3 = e3[2];
+  }
+};
+function Z(n2) {
+  return this.getChildContext = function() {
+    return n2.context;
+  }, n2.children;
+}
+function Y(n2) {
+  var e3 = this, r3 = n2.h;
+  if (e3.componentWillUnmount = function() {
+    R(null, e3.v), e3.v = null, e3.h = null;
+  }, e3.h && e3.h !== r3 && e3.componentWillUnmount(), !e3.v) {
+    for (var u4 = e3.__v; null !== u4 && !u4.__m && null !== u4.__; ) u4 = u4.__;
+    e3.h = r3, e3.v = { nodeType: 1, parentNode: r3, childNodes: [], __k: { __m: u4.__m }, contains: function() {
+      return true;
+    }, namespaceURI: r3.namespaceURI, insertBefore: function(n3, t3) {
+      this.childNodes.push(n3), e3.h.insertBefore(n3, t3);
+    }, removeChild: function(n3) {
+      this.childNodes.splice(this.childNodes.indexOf(n3) >>> 1, 1), e3.h.removeChild(n3);
+    } };
+  }
+  R(k(Z, { context: e3.context }, n2.__v), e3.v);
+}
+function $2(n2, e3) {
+  var r3 = k(Y, { __v: n2, h: e3 });
+  return r3.containerInfo = e3, r3;
+}
+(B3.prototype = new C()).__a = function(n2) {
+  var t3 = this, e3 = j3(t3.__v), r3 = t3.l.get(n2);
+  return r3[0]++, function(u4) {
+    var o3 = function() {
+      t3.props.revealOrder ? (r3.push(u4), H2(t3, n2, r3)) : u4();
+    };
+    e3 ? e3(o3) : o3();
+  };
+}, B3.prototype.render = function(n2) {
+  this.i = null, this.l = /* @__PURE__ */ new Map();
+  var t3 = F(n2.children);
+  n2.revealOrder && "b" === n2.revealOrder[0] && t3.reverse();
+  for (var e3 = t3.length; e3--; ) this.l.set(t3[e3], this.i = [1, 0, this.i]);
+  return n2.children;
+}, B3.prototype.componentDidUpdate = B3.prototype.componentDidMount = function() {
+  var n2 = this;
+  this.l.forEach(function(t3, e3) {
+    H2(n2, e3, t3);
+  });
+};
+var q3 = "undefined" != typeof Symbol && Symbol.for && Symbol.for("react.element") || 60103;
+var G2 = /^(?:accent|alignment|arabic|baseline|cap|clip(?!PathU)|color|dominant|fill|flood|font|glyph(?!R)|horiz|image(!S)|letter|lighting|marker(?!H|W|U)|overline|paint|pointer|shape|stop|strikethrough|stroke|text(?!L)|transform|underline|unicode|units|v|vector|vert|word|writing|x(?!C))[A-Z]/;
+var J2 = /^on(Ani|Tra|Tou|BeforeInp|Compo)/;
+var K2 = /[A-Z0-9]/g;
+var Q2 = "undefined" != typeof document;
+var X2 = function(n2) {
+  return ("undefined" != typeof Symbol && "symbol" == typeof Symbol() ? /fil|che|rad/ : /fil|che|ra/).test(n2);
+};
+C.prototype.isReactComponent = true, ["componentWillMount", "componentWillReceiveProps", "componentWillUpdate"].forEach(function(t3) {
+  Object.defineProperty(C.prototype, t3, { configurable: true, get: function() {
+    return this["UNSAFE_" + t3];
+  }, set: function(n2) {
+    Object.defineProperty(this, t3, { configurable: true, writable: true, value: n2 });
+  } });
+});
+var en = l.event;
+l.event = function(n2) {
+  return en && (n2 = en(n2)), n2.persist = function() {
+  }, n2.isPropagationStopped = function() {
+    return this.cancelBubble;
+  }, n2.isDefaultPrevented = function() {
+    return this.defaultPrevented;
+  }, n2.nativeEvent = n2;
+};
+var rn;
+var un = { configurable: true, get: function() {
+  return this.class;
+} };
+var on = l.vnode;
+l.vnode = function(n2) {
+  "string" == typeof n2.type && function(n3) {
+    var t3 = n3.props, e3 = n3.type, u4 = {}, o3 = -1 == e3.indexOf("-");
+    for (var i4 in t3) {
+      var l3 = t3[i4];
+      if (!("value" === i4 && "defaultValue" in t3 && null == l3 || Q2 && "children" === i4 && "noscript" === e3 || "class" === i4 || "className" === i4)) {
+        var f4 = i4.toLowerCase();
+        "defaultValue" === i4 && "value" in t3 && null == t3.value ? i4 = "value" : "download" === i4 && true === l3 ? l3 = "" : "translate" === f4 && "no" === l3 ? l3 = false : "o" === f4[0] && "n" === f4[1] ? "ondoubleclick" === f4 ? i4 = "ondblclick" : "onchange" !== f4 || "input" !== e3 && "textarea" !== e3 || X2(t3.type) ? "onfocus" === f4 ? i4 = "onfocusin" : "onblur" === f4 ? i4 = "onfocusout" : J2.test(i4) && (i4 = f4) : f4 = i4 = "oninput" : o3 && G2.test(i4) ? i4 = i4.replace(K2, "-$&").toLowerCase() : null === l3 && (l3 = void 0), "oninput" === f4 && u4[i4 = f4] && (i4 = "oninputCapture"), u4[i4] = l3;
+      }
+    }
+    "select" == e3 && (u4.multiple && Array.isArray(u4.value) && (u4.value = F(t3.children).forEach(function(n4) {
+      n4.props.selected = -1 != u4.value.indexOf(n4.props.value);
+    })), null != u4.defaultValue && (u4.value = F(t3.children).forEach(function(n4) {
+      n4.props.selected = u4.multiple ? -1 != u4.defaultValue.indexOf(n4.props.value) : u4.defaultValue == n4.props.value;
+    }))), t3.class && !t3.className ? (u4.class = t3.class, Object.defineProperty(u4, "className", un)) : t3.className && (u4.class = u4.className = t3.className), n3.props = u4;
+  }(n2), n2.$$typeof = q3, on && on(n2);
+};
+var ln = l.__r;
+l.__r = function(n2) {
+  ln && ln(n2), rn = n2.__c;
+};
+var fn = l.diffed;
+l.diffed = function(n2) {
+  fn && fn(n2);
+  var t3 = n2.props, e3 = n2.__e;
+  null != e3 && "textarea" === n2.type && "value" in t3 && t3.value !== e3.value && (e3.value = null == t3.value ? "" : t3.value), rn = null;
+};
+
 // src/components/BottomSheet.tsx
 function BottomSheet({
   open,
@@ -707,32 +908,35 @@ function BottomSheet({
       setDragOffsetY(0);
     }
   };
-  return /* @__PURE__ */ u3(
-    "div",
-    {
-      class: `mh-sheet-backdrop ${closing ? "is-closing" : ""}`,
-      onClick: (e3) => {
-        if (e3.target === e3.currentTarget) onClose();
-      },
-      children: /* @__PURE__ */ u3(
-        "div",
-        {
-          ref: panelRef,
-          class: `mh-sheet-panel ${closing ? "is-closing" : ""}`,
-          style: dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: "none" } : void 0,
-          role: "dialog",
-          "aria-modal": "true",
-          onTouchStart: handleTouchStart,
-          onTouchMove: handleTouchMove,
-          onTouchEnd: handleTouchEnd,
-          children: [
-            title && /* @__PURE__ */ u3("div", { class: "mh-sheet-title", children: title }),
-            /* @__PURE__ */ u3("div", { class: "mh-sheet-body", children }),
-            showCancel && /* @__PURE__ */ u3("button", { type: "button", class: "mh-sheet-cancel", onClick: onClose, children: cancelText })
-          ]
-        }
-      )
-    }
+  return $2(
+    /* @__PURE__ */ u3(
+      "div",
+      {
+        class: `mh-sheet-backdrop ${closing ? "is-closing" : ""}`,
+        onClick: (e3) => {
+          if (e3.target === e3.currentTarget) onClose();
+        },
+        children: /* @__PURE__ */ u3(
+          "div",
+          {
+            ref: panelRef,
+            class: `mh-sheet-panel ${closing ? "is-closing" : ""}`,
+            style: dragOffsetY > 0 ? { transform: `translateY(${dragOffsetY}px)`, transition: "none" } : void 0,
+            role: "dialog",
+            "aria-modal": "true",
+            onTouchStart: handleTouchStart,
+            onTouchMove: handleTouchMove,
+            onTouchEnd: handleTouchEnd,
+            children: [
+              title && /* @__PURE__ */ u3("div", { class: "mh-sheet-title", children: title }),
+              /* @__PURE__ */ u3("div", { class: "mh-sheet-body", children }),
+              showCancel && /* @__PURE__ */ u3("button", { type: "button", class: "mh-sheet-cancel", onClick: onClose, children: cancelText })
+            ]
+          }
+        )
+      }
+    ),
+    document.body
   );
 }
 
@@ -765,45 +969,48 @@ function PromptModal({
     if (!confirmOnly && !value.trim()) return;
     onConfirm(value.trim());
   };
-  return /* @__PURE__ */ u3(
-    "div",
-    {
-      class: "mh-modal-backdrop",
-      onClick: (e3) => {
-        if (e3.target === e3.currentTarget) onCancel();
-      },
-      children: /* @__PURE__ */ u3("div", { class: "mh-modal-card", role: "dialog", "aria-modal": "true", children: [
-        /* @__PURE__ */ u3("div", { class: "mh-modal-title", children: title }),
-        message && /* @__PURE__ */ u3("div", { class: "mh-modal-message", children: message }),
-        !confirmOnly && /* @__PURE__ */ u3(
-          "input",
-          {
-            ref: inputRef,
-            type: "text",
-            class: "mh-modal-input",
-            placeholder,
-            value,
-            onInput: (e3) => setValue(e3.target.value),
-            onKeyDown: (e3) => {
-              if (e3.key === "Enter") submit();
-              if (e3.key === "Escape") onCancel();
-            }
-          }
-        ),
-        /* @__PURE__ */ u3("div", { class: "mh-modal-actions", children: [
-          /* @__PURE__ */ u3("button", { type: "button", class: "mh-btn mh-btn-ghost", onClick: onCancel, children: "\u53D6\u6D88" }),
-          /* @__PURE__ */ u3(
-            "button",
+  return $2(
+    /* @__PURE__ */ u3(
+      "div",
+      {
+        class: "mh-modal-backdrop",
+        onClick: (e3) => {
+          if (e3.target === e3.currentTarget) onCancel();
+        },
+        children: /* @__PURE__ */ u3("div", { class: "mh-modal-card", role: "dialog", "aria-modal": "true", children: [
+          /* @__PURE__ */ u3("div", { class: "mh-modal-title", children: title }),
+          message && /* @__PURE__ */ u3("div", { class: "mh-modal-message", children: message }),
+          !confirmOnly && /* @__PURE__ */ u3(
+            "input",
             {
-              type: "button",
-              class: `mh-btn ${danger ? "mh-btn-danger" : "mh-btn-primary"}`,
-              onClick: submit,
-              children: confirmText
+              ref: inputRef,
+              type: "text",
+              class: "mh-modal-input",
+              placeholder,
+              value,
+              onInput: (e3) => setValue(e3.target.value),
+              onKeyDown: (e3) => {
+                if (e3.key === "Enter") submit();
+                if (e3.key === "Escape") onCancel();
+              }
             }
-          )
+          ),
+          /* @__PURE__ */ u3("div", { class: "mh-modal-actions", children: [
+            /* @__PURE__ */ u3("button", { type: "button", class: "mh-btn mh-btn-ghost", onClick: onCancel, children: "\u53D6\u6D88" }),
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: `mh-btn ${danger ? "mh-btn-danger" : "mh-btn-primary"}`,
+                onClick: submit,
+                children: confirmText
+              }
+            )
+          ] })
         ] })
-      ] })
-    }
+      }
+    ),
+    document.body
   );
 }
 
@@ -1310,88 +1517,91 @@ function CalendarPanel({
             children: /* @__PURE__ */ u3("div", { class: "mh-cal-handler-bar" })
           }
         ),
-        pickerOpen && /* @__PURE__ */ u3(
-          "div",
-          {
-            class: "mh-modal-backdrop",
-            onClick: (e3) => {
-              if (e3.target === e3.currentTarget) setPickerOpen(false);
-            },
-            children: /* @__PURE__ */ u3("div", { class: "mh-ym-modal", role: "dialog", "aria-modal": "true", children: [
-              /* @__PURE__ */ u3("div", { class: "mh-ym-header", children: [
-                /* @__PURE__ */ u3("div", { class: "mh-ym-tabs", children: [
+        pickerOpen && $2(
+          /* @__PURE__ */ u3(
+            "div",
+            {
+              class: "mh-modal-backdrop",
+              onClick: (e3) => {
+                if (e3.target === e3.currentTarget) setPickerOpen(false);
+              },
+              children: /* @__PURE__ */ u3("div", { class: "mh-ym-modal", role: "dialog", "aria-modal": "true", children: [
+                /* @__PURE__ */ u3("div", { class: "mh-ym-header", children: [
+                  /* @__PURE__ */ u3("div", { class: "mh-ym-tabs", children: [
+                    /* @__PURE__ */ u3(
+                      "button",
+                      {
+                        type: "button",
+                        class: `mh-ym-tab ${pickerTab === "month" ? "is-active" : ""}`,
+                        onClick: () => setPickerTab("month"),
+                        children: [
+                          viewMonth + 1,
+                          "\u6708"
+                        ]
+                      }
+                    ),
+                    /* @__PURE__ */ u3(
+                      "button",
+                      {
+                        type: "button",
+                        class: `mh-ym-tab ${pickerTab === "year" ? "is-active" : ""}`,
+                        onClick: () => setPickerTab("year"),
+                        children: viewYear
+                      }
+                    )
+                  ] }),
                   /* @__PURE__ */ u3(
                     "button",
                     {
                       type: "button",
-                      class: `mh-ym-tab ${pickerTab === "month" ? "is-active" : ""}`,
-                      onClick: () => setPickerTab("month"),
-                      children: [
-                        viewMonth + 1,
-                        "\u6708"
-                      ]
-                    }
-                  ),
-                  /* @__PURE__ */ u3(
-                    "button",
-                    {
-                      type: "button",
-                      class: `mh-ym-tab ${pickerTab === "year" ? "is-active" : ""}`,
-                      onClick: () => setPickerTab("year"),
-                      children: viewYear
+                      class: "mh-icon-btn mh-ym-reset-btn",
+                      "aria-label": "\u56DE\u5230\u4ECA\u5929",
+                      title: "\u56DE\u5230\u4ECA\u5929",
+                      onClick: goToday,
+                      children: /* @__PURE__ */ u3(ObsidianIcon, { name: "rotate-ccw", size: 20 })
                     }
                   )
                 ] }),
-                /* @__PURE__ */ u3(
-                  "button",
-                  {
-                    type: "button",
-                    class: "mh-icon-btn mh-ym-reset-btn",
-                    "aria-label": "\u56DE\u5230\u4ECA\u5929",
-                    title: "\u56DE\u5230\u4ECA\u5929",
-                    onClick: goToday,
-                    children: /* @__PURE__ */ u3(ObsidianIcon, { name: "rotate-ccw", size: 20 })
-                  }
-                )
-              ] }),
-              pickerTab === "month" ? /* @__PURE__ */ u3("div", { class: "mh-ym-month-grid", children: MONTHS.map((m3) => {
-                const active = m3 - 1 === viewMonth;
-                return /* @__PURE__ */ u3(
-                  "button",
-                  {
-                    type: "button",
-                    class: `mh-ym-month-cell ${active ? "is-active" : ""}`,
-                    onClick: () => {
-                      setViewMonth(m3 - 1);
-                      setTransitionKey((k3) => k3 + 1);
-                      setPickerOpen(false);
+                pickerTab === "month" ? /* @__PURE__ */ u3("div", { class: "mh-ym-month-grid", children: MONTHS.map((m3) => {
+                  const active = m3 - 1 === viewMonth;
+                  return /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      type: "button",
+                      class: `mh-ym-month-cell ${active ? "is-active" : ""}`,
+                      onClick: () => {
+                        setViewMonth(m3 - 1);
+                        setTransitionKey((k3) => k3 + 1);
+                        setPickerOpen(false);
+                      },
+                      children: [
+                        m3,
+                        "\u6708"
+                      ]
                     },
-                    children: [
-                      m3,
-                      "\u6708"
-                    ]
-                  },
-                  m3
-                );
-              }) }) : /* @__PURE__ */ u3("div", { class: "mh-ym-year-list", children: yearOptions.map((y3) => {
-                const active = y3 === viewYear;
-                return /* @__PURE__ */ u3(
-                  "button",
-                  {
-                    ref: active ? activeYearBtnRef : void 0,
-                    type: "button",
-                    class: `mh-ym-year-item ${active ? "is-active" : ""}`,
-                    onClick: () => {
-                      setViewYear(y3);
-                      setPickerTab("month");
+                    m3
+                  );
+                }) }) : /* @__PURE__ */ u3("div", { class: "mh-ym-year-list", children: yearOptions.map((y3) => {
+                  const active = y3 === viewYear;
+                  return /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      ref: active ? activeYearBtnRef : void 0,
+                      type: "button",
+                      class: `mh-ym-year-item ${active ? "is-active" : ""}`,
+                      onClick: () => {
+                        setViewYear(y3);
+                        setPickerTab("month");
+                      },
+                      children: y3
                     },
-                    children: y3
-                  },
-                  y3
-                );
-              }) })
-            ] })
-          }
+                    y3
+                  );
+                }) })
+              ] })
+            }
+          ),
+          document.body
         )
       ]
     }
@@ -1521,27 +1731,27 @@ date: ${selectedDate} ${hh}:${mm}
       longPressTimer.current = null;
     }
   };
-  const handleCardPointerDown = (entry, e3) => {
+  const startLongPress = (entry, x3, y3) => {
     clearLongPress();
     longPressTriggered.current = false;
-    pressStart.current = { x: e3.clientX, y: e3.clientY };
+    pressStart.current = { x: x3, y: y3 };
     longPressTimer.current = window.setTimeout(() => {
       longPressTimer.current = null;
       longPressTriggered.current = true;
       navigator.vibrate?.(15);
       setMenuDiary(entry);
-    }, 380);
+    }, 320);
   };
-  const handleCardPointerMove = (e3) => {
+  const moveLongPress = (x3, y3) => {
     if (!pressStart.current) return;
-    const dx = Math.abs(e3.clientX - pressStart.current.x);
-    const dy = Math.abs(e3.clientY - pressStart.current.y);
-    if (dx > 10 || dy > 10) {
+    const dx = Math.abs(x3 - pressStart.current.x);
+    const dy = Math.abs(y3 - pressStart.current.y);
+    if (dx > 14 || dy > 14) {
       clearLongPress();
       pressStart.current = null;
     }
   };
-  const handleCardPointerUp = () => {
+  const endLongPress = () => {
     clearLongPress();
     pressStart.current = null;
   };
@@ -1586,13 +1796,27 @@ date: ${selectedDate} ${hh}:${mm}
               /* @__PURE__ */ u3(
                 "article",
                 {
-                  class: "mh-diary-card",
-                  onPointerDown: (e3) => handleCardPointerDown(entry, e3),
-                  onPointerMove: handleCardPointerMove,
-                  onPointerUp: handleCardPointerUp,
-                  onPointerCancel: handleCardPointerUp,
+                  class: `mh-diary-card ${entry.images.length > 0 ? "has-images" : ""}`,
+                  onTouchStart: (e3) => {
+                    if (e3.touches.length === 1) {
+                      startLongPress(
+                        entry,
+                        e3.touches[0].clientX,
+                        e3.touches[0].clientY
+                      );
+                    }
+                  },
+                  onTouchMove: (e3) => {
+                    if (e3.touches.length === 1) {
+                      moveLongPress(e3.touches[0].clientX, e3.touches[0].clientY);
+                    }
+                  },
+                  onTouchEnd: endLongPress,
+                  onTouchCancel: endLongPress,
                   onContextMenu: (e3) => {
                     e3.preventDefault();
+                    clearLongPress();
+                    longPressTriggered.current = true;
                     setMenuDiary(entry);
                   },
                   onClick: () => {
@@ -1653,67 +1877,70 @@ date: ${selectedDate} ${hh}:${mm}
         children: /* @__PURE__ */ u3(ObsidianIcon, { name: "pencil", size: 22 })
       }
     ),
-    lightbox && /* @__PURE__ */ u3(
-      "div",
-      {
-        class: "mh-lightbox-backdrop",
-        onClick: () => setLightbox(null),
-        children: [
-          /* @__PURE__ */ u3(
-            "img",
-            {
-              src: lightbox.images[lightbox.index],
-              class: "mh-lightbox-img",
-              alt: "",
-              onClick: (e3) => e3.stopPropagation()
-            }
-          ),
-          lightbox.images.length > 1 && /* @__PURE__ */ u3(
-            "div",
-            {
-              class: "mh-lightbox-controls",
-              onClick: (e3) => e3.stopPropagation(),
-              children: [
-                /* @__PURE__ */ u3(
-                  "button",
-                  {
-                    type: "button",
-                    class: "mh-lightbox-nav",
-                    "aria-label": "\u4E0A\u4E00\u5F20",
-                    onClick: () => setLightbox(
-                      (prev) => prev ? {
-                        ...prev,
-                        index: (prev.index - 1 + prev.images.length) % prev.images.length
-                      } : null
-                    ),
-                    children: /* @__PURE__ */ u3(ObsidianIcon, { name: "chevron-left", size: 22 })
-                  }
-                ),
-                /* @__PURE__ */ u3("span", { class: "mh-lightbox-counter", children: [
-                  lightbox.index + 1,
-                  " / ",
-                  lightbox.images.length
-                ] }),
-                /* @__PURE__ */ u3(
-                  "button",
-                  {
-                    type: "button",
-                    class: "mh-lightbox-nav",
-                    "aria-label": "\u4E0B\u4E00\u5F20",
-                    onClick: () => setLightbox(
-                      (prev) => prev ? {
-                        ...prev,
-                        index: (prev.index + 1) % prev.images.length
-                      } : null
-                    ),
-                    children: /* @__PURE__ */ u3(ObsidianIcon, { name: "chevron-right", size: 22 })
-                  }
-                )
-              ]
-            }
-          )
-        ]
-      }
+    lightbox && $2(
+      /* @__PURE__ */ u3(
+        "div",
+        {
+          class: "mh-lightbox-backdrop",
+          onClick: () => setLightbox(null),
+          children: [
+            /* @__PURE__ */ u3(
+              "img",
+              {
+                src: lightbox.images[lightbox.index],
+                class: "mh-lightbox-img",
+                alt: "",
+                onClick: (e3) => e3.stopPropagation()
+              }
+            ),
+            lightbox.images.length > 1 && /* @__PURE__ */ u3(
+              "div",
+              {
+                class: "mh-lightbox-controls",
+                onClick: (e3) => e3.stopPropagation(),
+                children: [
+                  /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      type: "button",
+                      class: "mh-lightbox-nav",
+                      "aria-label": "\u4E0A\u4E00\u5F20",
+                      onClick: () => setLightbox(
+                        (prev) => prev ? {
+                          ...prev,
+                          index: (prev.index - 1 + prev.images.length) % prev.images.length
+                        } : null
+                      ),
+                      children: /* @__PURE__ */ u3(ObsidianIcon, { name: "chevron-left", size: 22 })
+                    }
+                  ),
+                  /* @__PURE__ */ u3("span", { class: "mh-lightbox-counter", children: [
+                    lightbox.index + 1,
+                    " / ",
+                    lightbox.images.length
+                  ] }),
+                  /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      type: "button",
+                      class: "mh-lightbox-nav",
+                      "aria-label": "\u4E0B\u4E00\u5F20",
+                      onClick: () => setLightbox(
+                        (prev) => prev ? {
+                          ...prev,
+                          index: (prev.index + 1) % prev.images.length
+                        } : null
+                      ),
+                      children: /* @__PURE__ */ u3(ObsidianIcon, { name: "chevron-right", size: 22 })
+                    }
+                  )
+                ]
+              }
+            )
+          ]
+        }
+      ),
+      document.body
     ),
     /* @__PURE__ */ u3(
       BottomSheet,

@@ -1,4 +1,5 @@
 import { ComponentChildren } from "preact";
+import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 interface BottomSheetProps {
@@ -69,7 +70,7 @@ export function BottomSheet({
     }
   };
 
-  return (
+  return createPortal(
     <div
       class={`mh-sheet-backdrop ${closing ? "is-closing" : ""}`}
       onClick={(e) => {
@@ -98,6 +99,7 @@ export function BottomSheet({
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

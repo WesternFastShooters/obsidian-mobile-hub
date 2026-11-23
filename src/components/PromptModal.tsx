@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { createPortal } from "preact/compat";
 
 interface PromptModalProps {
   open: boolean;
@@ -45,7 +46,7 @@ export function PromptModal({
     onConfirm(value.trim());
   };
 
-  return (
+  return createPortal(
     <div
       class="mh-modal-backdrop"
       onClick={(e) => {
@@ -82,6 +83,7 @@ export function PromptModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

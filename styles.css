@@ -107,8 +107,11 @@ body.is-mobile.mh-editor-active .workspace-leaf.mod-active .markdown-preview-vie
   -webkit-user-select: none;
 }
 
-/* Override Obsidian Mobile's global button min-width/height/padding */
-.mh-root button {
+/* Override Obsidian Mobile's global button min-width/height/padding (including portaled sheets/modals) */
+.mh-root button,
+.mh-sheet-backdrop button,
+.mh-modal-backdrop button,
+.mh-lightbox-backdrop button {
   min-width: 0 !important;
   min-height: 0 !important;
   height: auto;
@@ -724,12 +727,18 @@ body .mh-root .mh-memo-page .mh-fab:active {
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-l);
-  padding: 12px 14px;
+  min-height: 68px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 10px;
   cursor: pointer;
   -webkit-touch-callout: none;
+}
+
+.mh-diary-card.has-images .mh-diary-text {
+  -webkit-line-clamp: 3;
 }
 
 .mh-diary-card:active {

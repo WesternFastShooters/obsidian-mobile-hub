@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { createPortal } from "preact/compat";
 import { App, TFile, Notice } from "obsidian";
 import { DiaryItem, HubRuntimeState, MobileHubSettings } from "../types";
 import {
@@ -162,29 +163,29 @@ export function DiaryTab({
     }
   };
 
-  const handleCardPointerDown = (entry: DiaryItem, e: PointerEvent) => {
+  const startLongPress = (entry: DiaryItem, x: number, y: number) => {
     clearLongPress();
     longPressTriggered.current = false;
-    pressStart.current = { x: e.clientX, y: e.clientY };
+    pressStart.current = { x, y };
     longPressTimer.current = window.setTimeout(() => {
       longPressTimer.current = null;
       longPressTriggered.current = true;
       navigator.vibrate?.(15);
       setMenuDiary(entry);
-    }, 380);
+    }, 320);
   };
 
-  const handleCardPointerMove = (e: PointerEvent) => {
+  const moveLongPress = (x: number, y: number) => {
     if (!pressStart.current) return;
-    const dx = Math.abs(e.clientX - pressStart.current.x);
-    const dy = Math.abs(e.clientY - pressStart.current.y);
-    if (dx > 10 || dy > 10) {
+    const dx = Math.abs(x - pressStart.current.x);
+    const dy = Math.abs(y - pressStart.current.y);
+    if (dx > 14 || dy > 14) {
       clearLongPress();
       pressStart.current = null;
     }
   };
 
-  const handleCardPointerUp = () => {
+  const endLongPress = () => {
     clearLongPress();
     pressStart.current = null;
   };
@@ -233,13 +234,27 @@ export function DiaryTab({
                       <span class="mh-timeline-sub">{entry.basename}</span>
                     </div>
                     <article
-                      class="mh-diary-card"
-                      onPointerDown={(e) => handleCardPointerDown(entry, e)}
-                      onPointerMove={handleCardPointerMove}
-                      onPointerUp={handleCardPointerUp}
-                      onPointerCancel={handleCardPointerUp}
+                      class={`mh-diary-card ${entry.images.length > 0 ? "has-images" : ""}`}
+                      onTouchStart={(e) => {
+                        if (e.touches.length === 1) {
+                          startLongPress(
+                            entry,
+                            e.touches[0].clientX,
+                            e.touches[0].clientY
+                          );
+                        }
+                      }}
+                      onTouchMove={(e) => {
+                        if (e.touches.length === 1) {
+                          moveLongPress(e.touches[0].clientX, e.touches[0].clientY);
+                        }
+                      }}
+                      onTouchEnd={endLongPress}
+                      onTouchCancel={endLongPress}
                       onContextMenu={(e) => {
                         e.preventDefault();
+                        clearLongPress();
+                        longPressTriggered.current = true;
                         setMenuDiary(entry);
                       }}
                       onClick={() => {
@@ -305,65 +320,67 @@ export function DiaryTab({
       </button>
 
       {/* Lightbox Image Preview */}
-      {lightbox && (
-        <div
-          class="mh-lightbox-backdrop"
-          onClick={() => setLightbox(null)}
-        >
-          <img
-            src={lightbox.images[lightbox.index]}
-            class="mh-lightbox-img"
-            alt=""
-            onClick={(e) => e.stopPropagation()}
-          />
-          {lightbox.images.length > 1 && (
-            <div
-              class="mh-lightbox-controls"
+      {lightbox &&
+        createPortal(
+          <div
+            class="mh-lightbox-backdrop"
+            onClick={() => setLightbox(null)}
+          >
+            <img
+              src={lightbox.images[lightbox.index]}
+              class="mh-lightbox-img"
+              alt=""
               onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                class="mh-lightbox-nav"
-                aria-label="上一张"
-                onClick={() =>
-                  setLightbox((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          index:
-                            (prev.index - 1 + prev.images.length) %
-                            prev.images.length,
-                        }
-                      : null
-                  )
-                }
+            />
+            {lightbox.images.length > 1 && (
+              <div
+                class="mh-lightbox-controls"
+                onClick={(e) => e.stopPropagation()}
               >
-                <ObsidianIcon name="chevron-left" size={22} />
-              </button>
-              <span class="mh-lightbox-counter">
-                {lightbox.index + 1} / {lightbox.images.length}
-              </span>
-              <button
-                type="button"
-                class="mh-lightbox-nav"
-                aria-label="下一张"
-                onClick={() =>
-                  setLightbox((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          index: (prev.index + 1) % prev.images.length,
-                        }
-                      : null
-                  )
-                }
-              >
-                <ObsidianIcon name="chevron-right" size={22} />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+                <button
+                  type="button"
+                  class="mh-lightbox-nav"
+                  aria-label="上一张"
+                  onClick={() =>
+                    setLightbox((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            index:
+                              (prev.index - 1 + prev.images.length) %
+                              prev.images.length,
+                          }
+                        : null
+                    )
+                  }
+                >
+                  <ObsidianIcon name="chevron-left" size={22} />
+                </button>
+                <span class="mh-lightbox-counter">
+                  {lightbox.index + 1} / {lightbox.images.length}
+                </span>
+                <button
+                  type="button"
+                  class="mh-lightbox-nav"
+                  aria-label="下一张"
+                  onClick={() =>
+                    setLightbox((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            index: (prev.index + 1) % prev.images.length,
+                          }
+                        : null
+                    )
+                  }
+                >
+                  <ObsidianIcon name="chevron-right" size={22} />
+                </button>
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
 
       {/* Long-press bottom drawer (unified 3-tier Yuque layout) */}
       <BottomSheet

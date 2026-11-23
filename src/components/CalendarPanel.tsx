@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { createPortal } from "preact/compat";
 import { ObsidianIcon } from "./ObsidianIcon";
 import { formatDateKey } from "../utils/obsidian";
 
@@ -278,86 +279,88 @@ export function CalendarPanel({
         </div>
       )}
 
-      {pickerOpen && (
-        <div
-          class="mh-modal-backdrop"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setPickerOpen(false);
-          }}
-        >
-          <div class="mh-ym-modal" role="dialog" aria-modal="true">
-            <div class="mh-ym-header">
-              <div class="mh-ym-tabs">
+      {pickerOpen &&
+        createPortal(
+          <div
+            class="mh-modal-backdrop"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setPickerOpen(false);
+            }}
+          >
+            <div class="mh-ym-modal" role="dialog" aria-modal="true">
+              <div class="mh-ym-header">
+                <div class="mh-ym-tabs">
+                  <button
+                    type="button"
+                    class={`mh-ym-tab ${pickerTab === "month" ? "is-active" : ""}`}
+                    onClick={() => setPickerTab("month")}
+                  >
+                    {viewMonth + 1}月
+                  </button>
+                  <button
+                    type="button"
+                    class={`mh-ym-tab ${pickerTab === "year" ? "is-active" : ""}`}
+                    onClick={() => setPickerTab("year")}
+                  >
+                    {viewYear}
+                  </button>
+                </div>
                 <button
                   type="button"
-                  class={`mh-ym-tab ${pickerTab === "month" ? "is-active" : ""}`}
-                  onClick={() => setPickerTab("month")}
+                  class="mh-icon-btn mh-ym-reset-btn"
+                  aria-label="回到今天"
+                  title="回到今天"
+                  onClick={goToday}
                 >
-                  {viewMonth + 1}月
-                </button>
-                <button
-                  type="button"
-                  class={`mh-ym-tab ${pickerTab === "year" ? "is-active" : ""}`}
-                  onClick={() => setPickerTab("year")}
-                >
-                  {viewYear}
+                  <ObsidianIcon name="rotate-ccw" size={20} />
                 </button>
               </div>
-              <button
-                type="button"
-                class="mh-icon-btn mh-ym-reset-btn"
-                aria-label="回到今天"
-                title="回到今天"
-                onClick={goToday}
-              >
-                <ObsidianIcon name="rotate-ccw" size={20} />
-              </button>
-            </div>
 
-            {pickerTab === "month" ? (
-              <div class="mh-ym-month-grid">
-                {MONTHS.map((m) => {
-                  const active = m - 1 === viewMonth;
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      class={`mh-ym-month-cell ${active ? "is-active" : ""}`}
-                      onClick={() => {
-                        setViewMonth(m - 1);
-                        setTransitionKey((k) => k + 1);
-                        setPickerOpen(false);
-                      }}
-                    >
-                      {m}月
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div class="mh-ym-year-list">
-                {yearOptions.map((y) => {
-                  const active = y === viewYear;
-                  return (
-                    <button
-                      key={y}
-                      ref={active ? activeYearBtnRef : undefined}
-                      type="button"
-                      class={`mh-ym-year-item ${active ? "is-active" : ""}`}
-                      onClick={() => {
-                        setViewYear(y);
-                        setPickerTab("month");
-                      }}
-                    >
-                      {y}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+              {pickerTab === "month" ? (
+                <div class="mh-ym-month-grid">
+                  {MONTHS.map((m) => {
+                    const active = m - 1 === viewMonth;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        class={`mh-ym-month-cell ${active ? "is-active" : ""}`}
+                        onClick={() => {
+                          setViewMonth(m - 1);
+                          setTransitionKey((k) => k + 1);
+                          setPickerOpen(false);
+                        }}
+                      >
+                        {m}月
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div class="mh-ym-year-list">
+                  {yearOptions.map((y) => {
+                    const active = y === viewYear;
+                    return (
+                      <button
+                        key={y}
+                        ref={active ? activeYearBtnRef : undefined}
+                        type="button"
+                        class={`mh-ym-year-item ${active ? "is-active" : ""}`}
+                        onClick={() => {
+                          setViewYear(y);
+                          setPickerTab("month");
+                        }}
+                      >
+                        {y}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
