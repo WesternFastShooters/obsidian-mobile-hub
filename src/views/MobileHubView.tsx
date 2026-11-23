@@ -258,6 +258,9 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
                 settings={settings}
                 hubState={plugin.hubState}
                 refreshTick={refreshTick}
+                onTrackDraft={(path) => {
+                  plugin.pendingDraftPath = path;
+                }}
               />
             )}
           </section>
@@ -269,6 +272,9 @@ function MobileHubRoot({ plugin, subscribeRefresh }: MobileHubRootProps) {
                 settings={settings}
                 hubState={plugin.hubState}
                 refreshTick={refreshTick}
+                onTrackDraft={(path) => {
+                  plugin.pendingDraftPath = path;
+                }}
               />
             )}
           </section>

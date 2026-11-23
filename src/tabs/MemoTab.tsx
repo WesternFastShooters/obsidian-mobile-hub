@@ -19,12 +19,19 @@ interface MemoTabProps {
   settings: MobileHubSettings;
   hubState: HubRuntimeState;
   refreshTick: number;
+  onTrackDraft: (path: string) => void;
 }
 
 const INITIAL_FAST_COUNT = 8;
 const PAGE_SIZE = 20;
 
-export function MemoTab({ app, settings, hubState, refreshTick }: MemoTabProps) {
+export function MemoTab({
+  app,
+  settings,
+  hubState,
+  refreshTick,
+  onTrackDraft,
+}: MemoTabProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [items, setItems] = useState<MemoItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +131,7 @@ export function MemoTab({ app, settings, hubState, refreshTick }: MemoTabProps) 
       const base = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())} ${pad2(now.getHours())}-${pad2(now.getMinutes())}`;
       const newPath = await getUniqueFilePath(app, settings.memoFolder, base, "md");
       const file = await app.vault.create(newPath, "");
+      onTrackDraft(file.path);
       await openFileInEditor(app, file);
     } catch (err) {
       new Notice(`新建备忘录失败: ${String(err)}`);

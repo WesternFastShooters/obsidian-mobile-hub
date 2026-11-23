@@ -21,6 +21,7 @@ interface DiaryTabProps {
   settings: MobileHubSettings;
   hubState: HubRuntimeState;
   refreshTick: number;
+  onTrackDraft: (path: string) => void;
 }
 
 interface DiaryMeta {
@@ -30,7 +31,13 @@ interface DiaryMeta {
   sortKey: number;
 }
 
-export function DiaryTab({ app, settings, hubState, refreshTick }: DiaryTabProps) {
+export function DiaryTab({
+  app,
+  settings,
+  hubState,
+  refreshTick,
+  onTrackDraft,
+}: DiaryTabProps) {
   const [selectedDate, setSelectedDateState] = useState<string>(
     () => hubState.diarySelectedDate
   );
@@ -127,6 +134,7 @@ export function DiaryTab({ app, settings, hubState, refreshTick }: DiaryTabProps
       const newPath = await getUniqueFilePath(app, settings.diaryFolder, base, "md");
       const frontmatter = `---\ndate: ${selectedDate} ${hh}:${mm}\n---\n\n`;
       const file = await app.vault.create(newPath, frontmatter);
+      onTrackDraft(file.path);
       await openFileInEditor(app, file);
     } catch (err) {
       new Notice(`新建日记失败: ${String(err)}`);

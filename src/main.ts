@@ -5,6 +5,7 @@ import {
   PluginSettingTab,
   Setting,
   TAbstractFile,
+  TFile,
   WorkspaceLeaf,
   normalizePath,
   setIcon,
@@ -15,10 +16,11 @@ import {
   MobileHubSettings,
 } from "./types";
 import { MobileHubView, VIEW_TYPE_MOBILE_HUB } from "./views/MobileHubView";
-import { formatDateKey } from "./utils/obsidian";
+import { formatDateKey, stripFrontmatter } from "./utils/obsidian";
 
 export default class MobileHubPlugin extends Plugin {
   settings: MobileHubSettings = { ...DEFAULT_SETTINGS };
+  pendingDraftPath: string | null = null;
   hubState: HubRuntimeState = {
     lastTab: "memo",
     memoScrollTop: 0,
@@ -169,8 +171,9 @@ export default class MobileHubPlugin extends Plugin {
       svg.setAttribute("width", "24");
       svg.setAttribute("height", "24");
     }
-    btn.addEventListener("click", () => {
-      this.activateHubView();
+    btn.addEventListener("click", async () => {
+      await this.cleanupEmptyDraftIfNeeded();
+      await this.activateHubView();
     });
 
     bar.appendChild(btn);
@@ -249,7 +252,27 @@ export default class MobileHubPlugin extends Plugin {
     }
   }
 
+  async cleanupEmptyDraftIfNeeded(): Promise<void> {
+    const draftPath = this.pendingDraftPath;
+    if (!draftPath) return;
+    this.pendingDraftPath = null;
+
+    const af = this.app.vault.getAbstractFileByPath(draftPath);
+    if (!(af instanceof TFile)) return;
+
+    try {
+      const content = await this.app.vault.read(af);
+      const body = stripFrontmatter(content).trim();
+      if (!body) {
+        await this.app.vault.delete(af);
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+
   async activateHubView(): Promise<void> {
+    await this.cleanupEmptyDraftIfNeeded();
     const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
     let leaf: WorkspaceLeaf;
     if (existing.length > 0) {

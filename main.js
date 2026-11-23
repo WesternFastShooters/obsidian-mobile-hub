@@ -830,7 +830,13 @@ function PromptModal({
 // src/tabs/MemoTab.tsx
 var INITIAL_FAST_COUNT = 8;
 var PAGE_SIZE = 20;
-function MemoTab({ app, settings, hubState, refreshTick }) {
+function MemoTab({
+  app,
+  settings,
+  hubState,
+  refreshTick,
+  onTrackDraft
+}) {
   const [visibleCount, setVisibleCount] = d2(PAGE_SIZE);
   const [items, setItems] = d2([]);
   const [loading, setLoading] = d2(true);
@@ -917,6 +923,7 @@ function MemoTab({ app, settings, hubState, refreshTick }) {
       const base = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())} ${pad2(now.getHours())}-${pad2(now.getMinutes())}`;
       const newPath = await getUniqueFilePath(app, settings.memoFolder, base, "md");
       const file = await app.vault.create(newPath, "");
+      onTrackDraft(file.path);
       await openFileInEditor(app, file);
     } catch (err) {
       new import_obsidian3.Notice(`\u65B0\u5EFA\u5907\u5FD8\u5F55\u5931\u8D25: ${String(err)}`);
@@ -1412,7 +1419,13 @@ function CalendarPanel({
 }
 
 // src/tabs/DiaryTab.tsx
-function DiaryTab({ app, settings, hubState, refreshTick }) {
+function DiaryTab({
+  app,
+  settings,
+  hubState,
+  refreshTick,
+  onTrackDraft
+}) {
   const [selectedDate, setSelectedDateState] = d2(
     () => hubState.diarySelectedDate
   );
@@ -1503,6 +1516,7 @@ date: ${selectedDate} ${hh}:${mm}
 
 `;
       const file = await app.vault.create(newPath, frontmatter);
+      onTrackDraft(file.path);
       await openFileInEditor(app, file);
     } catch (err) {
       new import_obsidian6.Notice(`\u65B0\u5EFA\u65E5\u8BB0\u5931\u8D25: ${String(err)}`);
@@ -3204,7 +3218,10 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
                   app: plugin.app,
                   settings,
                   hubState: plugin.hubState,
-                  refreshTick
+                  refreshTick,
+                  onTrackDraft: (path) => {
+                    plugin.pendingDraftPath = path;
+                  }
                 }
               ) }),
               /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("diary") && /* @__PURE__ */ u3(
@@ -3213,7 +3230,10 @@ function MobileHubRoot({ plugin, subscribeRefresh }) {
                   app: plugin.app,
                   settings,
                   hubState: plugin.hubState,
-                  refreshTick
+                  refreshTick,
+                  onTrackDraft: (path) => {
+                    plugin.pendingDraftPath = path;
+                  }
                 }
               ) }),
               /* @__PURE__ */ u3("section", { class: "mh-pager-slide", children: mountedTabs.has("task") && /* @__PURE__ */ u3(
@@ -3300,6 +3320,7 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
   constructor() {
     super(...arguments);
     this.settings = { ...DEFAULT_SETTINGS };
+    this.pendingDraftPath = null;
     this.hubState = {
       lastTab: "memo",
       memoScrollTop: 0,
@@ -3422,8 +3443,9 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
       svg.setAttribute("width", "24");
       svg.setAttribute("height", "24");
     }
-    btn.addEventListener("click", () => {
-      this.activateHubView();
+    btn.addEventListener("click", async () => {
+      await this.cleanupEmptyDraftIfNeeded();
+      await this.activateHubView();
     });
     bar.appendChild(btn);
     document.body.appendChild(bar);
@@ -3490,7 +3512,23 @@ var MobileHubPlugin = class extends import_obsidian14.Plugin {
       this.boundTouchMove = null;
     }
   }
+  async cleanupEmptyDraftIfNeeded() {
+    const draftPath = this.pendingDraftPath;
+    if (!draftPath) return;
+    this.pendingDraftPath = null;
+    const af = this.app.vault.getAbstractFileByPath(draftPath);
+    if (!(af instanceof import_obsidian14.TFile)) return;
+    try {
+      const content = await this.app.vault.read(af);
+      const body = stripFrontmatter(content).trim();
+      if (!body) {
+        await this.app.vault.delete(af);
+      }
+    } catch {
+    }
+  }
   async activateHubView() {
+    await this.cleanupEmptyDraftIfNeeded();
     const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_MOBILE_HUB);
     let leaf;
     if (existing.length > 0) {
