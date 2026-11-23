@@ -926,31 +926,49 @@ body .mh-root .mh-memo-page .mh-fab:active {
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
-  padding: 8px 14px 124px 14px;
-  gap: 8px;
+  padding: 12px 12px 124px 12px;
+}
+
+/* Yuque-style unified rounded container for Knowledge Base rows */
+.mh-kb-group {
+  background: var(--background-secondary);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .mh-kb-item {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 12px;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-l);
+  padding: 16px 14px 16px 16px;
+  background: transparent;
+  position: relative;
   cursor: pointer;
 }
 
+.mh-kb-item + .mh-kb-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 72px;
+  right: 16px;
+  height: 1px;
+  background: var(--background-modifier-border);
+  opacity: 0.65;
+}
+
 .mh-kb-item:active {
-  background: var(--background-secondary-alt);
+  background: var(--background-modifier-hover);
 }
 
 .mh-kb-icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-m);
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+  border: none;
   color: var(--interactive-accent);
   display: flex;
   align-items: center;
@@ -963,12 +981,12 @@ body .mh-root .mh-memo-page .mh-fab:active {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .mh-kb-name {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
   color: var(--text-normal);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -976,8 +994,19 @@ body .mh-root .mh-memo-page .mh-fab:active {
 }
 
 .mh-kb-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-faint);
+}
+
+.mh-kb-meta-sep {
+  opacity: 0.45;
+}
+
+.mh-kb-more-btn {
+  color: var(--text-faint) !important;
 }
 
 /* Level 2: Tree View */

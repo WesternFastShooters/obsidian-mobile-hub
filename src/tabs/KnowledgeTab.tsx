@@ -524,38 +524,42 @@ export function KnowledgeTab({
               <div class="mh-empty-sub">点击下方 + 新建文件夹作为知识库</div>
             </div>
           ) : (
-            rootItems.map((kb) => (
-              <div
-                key={kb.path}
-                class="mh-kb-item"
-                onClick={() => {
-                  hubState.kbScrollTop = 0;
-                  setActiveRootPath(kb.path);
-                }}
-              >
-                <div class="mh-kb-icon-box">
-                  <ObsidianIcon name="book-marked" size={20} />
-                </div>
-                <div class="mh-kb-info">
-                  <div class="mh-kb-name">{kb.name}</div>
-                  <div class="mh-kb-meta">
-                    共 {kb.docCount} 篇文档 · {kb.latestTimeText}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  class="mh-icon-btn mh-more-btn"
-                  aria-label="知识库菜单"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const f = app.vault.getAbstractFileByPath(kb.path);
-                    if (f) setRowMenuTarget(f);
+            <div class="mh-kb-group">
+              {rootItems.map((kb) => (
+                <div
+                  key={kb.path}
+                  class="mh-kb-item"
+                  onClick={() => {
+                    hubState.kbScrollTop = 0;
+                    setActiveRootPath(kb.path);
                   }}
                 >
-                  <ObsidianIcon name="more-horizontal" size={18} />
-                </button>
-              </div>
-            ))
+                  <div class="mh-kb-icon-box">
+                    <ObsidianIcon name="book-marked" size={20} />
+                  </div>
+                  <div class="mh-kb-info">
+                    <div class="mh-kb-name">{kb.name}</div>
+                    <div class="mh-kb-meta">
+                      <span>共 {kb.docCount} 篇文档</span>
+                      <span class="mh-kb-meta-sep">|</span>
+                      <span>{kb.latestTimeText}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="mh-icon-btn mh-more-btn mh-kb-more-btn"
+                    aria-label="知识库菜单"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const f = app.vault.getAbstractFileByPath(kb.path);
+                      if (f) setRowMenuTarget(f);
+                    }}
+                  >
+                    <ObsidianIcon name="more-horizontal" size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       ) : (

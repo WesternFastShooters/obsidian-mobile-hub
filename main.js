@@ -2401,7 +2401,7 @@ function KnowledgeTab({
           /* @__PURE__ */ u3(ObsidianIcon, { name: "book-open", size: 40, className: "mh-empty-icon" }),
           /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: "\u6682\u65E0\u77E5\u8BC6\u5E93" }),
           /* @__PURE__ */ u3("div", { class: "mh-empty-sub", children: "\u70B9\u51FB\u4E0B\u65B9 + \u65B0\u5EFA\u6587\u4EF6\u5939\u4F5C\u4E3A\u77E5\u8BC6\u5E93" })
-        ] }) : rootItems.map((kb) => /* @__PURE__ */ u3(
+        ] }) : /* @__PURE__ */ u3("div", { class: "mh-kb-group", children: rootItems.map((kb) => /* @__PURE__ */ u3(
           "div",
           {
             class: "mh-kb-item",
@@ -2414,17 +2414,20 @@ function KnowledgeTab({
               /* @__PURE__ */ u3("div", { class: "mh-kb-info", children: [
                 /* @__PURE__ */ u3("div", { class: "mh-kb-name", children: kb.name }),
                 /* @__PURE__ */ u3("div", { class: "mh-kb-meta", children: [
-                  "\u5171 ",
-                  kb.docCount,
-                  " \u7BC7\u6587\u6863 \xB7 ",
-                  kb.latestTimeText
+                  /* @__PURE__ */ u3("span", { children: [
+                    "\u5171 ",
+                    kb.docCount,
+                    " \u7BC7\u6587\u6863"
+                  ] }),
+                  /* @__PURE__ */ u3("span", { class: "mh-kb-meta-sep", children: "|" }),
+                  /* @__PURE__ */ u3("span", { children: kb.latestTimeText })
                 ] })
               ] }),
               /* @__PURE__ */ u3(
                 "button",
                 {
                   type: "button",
-                  class: "mh-icon-btn mh-more-btn",
+                  class: "mh-icon-btn mh-more-btn mh-kb-more-btn",
                   "aria-label": "\u77E5\u8BC6\u5E93\u83DC\u5355",
                   onClick: (e3) => {
                     e3.stopPropagation();
@@ -2437,7 +2440,7 @@ function KnowledgeTab({
             ]
           },
           kb.path
-        ))
+        )) })
       }
     ) : /* @__PURE__ */ u3(
       "div",
