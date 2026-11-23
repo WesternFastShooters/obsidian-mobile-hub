@@ -267,8 +267,16 @@ body.is-mobile.mh-editor-active .workspace-leaf.mod-active .markdown-preview-vie
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
+}
+
+.mh-memo-scroll {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Empty State */
@@ -906,9 +914,13 @@ body .mh-root .mh-memo-page .mh-fab:active {
    Tab 4: Knowledge Base (Yuque List + Tree + Drag & Drop + Floating Pill)
    ========================================================================== */
 .mh-kb-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
-  padding: 8px 14px 104px 14px;
+  padding: 8px 14px 124px 14px;
   gap: 8px;
 }
 

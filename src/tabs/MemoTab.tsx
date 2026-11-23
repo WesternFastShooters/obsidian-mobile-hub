@@ -173,51 +173,53 @@ export function MemoTab({
   };
 
   return (
-    <div
-      ref={pageRef}
-      class="mh-tab-page mh-memo-page"
-      onScroll={(e) => {
-        hubState.memoScrollTop = (e.currentTarget as HTMLDivElement).scrollTop;
-      }}
-    >
-      {!loading && items.length === 0 ? (
-        <div class="mh-empty-state">
-          <ObsidianIcon name="sticky-note" size={40} className="mh-empty-icon" />
-          <div class="mh-empty-text">暂无备忘录</div>
-          <div class="mh-empty-sub">点击下方 + 记录第一条灵感</div>
-        </div>
-      ) : (
-        <div class="mh-memo-list">
-          {items.map((item) => (
-            <article
-              key={item.path}
-              class="mh-memo-card"
-              onClick={() => handleOpen(item.path)}
-            >
-              <div class="mh-memo-preview">{item.preview}</div>
-              <div class="mh-memo-footer">
-                <span class="mh-memo-time">{item.timeText}</span>
-                <button
-                  type="button"
-                  class="mh-icon-btn mh-more-btn"
-                  aria-label="更多操作"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMenuItem(item);
-                  }}
-                >
-                  <ObsidianIcon name="more-horizontal" size={18} />
-                </button>
+    <div class="mh-tab-page mh-memo-page">
+      <div
+        ref={pageRef}
+        class="mh-memo-scroll"
+        onScroll={(e) => {
+          hubState.memoScrollTop = (e.currentTarget as HTMLDivElement).scrollTop;
+        }}
+      >
+        {!loading && items.length === 0 ? (
+          <div class="mh-empty-state">
+            <ObsidianIcon name="sticky-note" size={40} className="mh-empty-icon" />
+            <div class="mh-empty-text">暂无备忘录</div>
+            <div class="mh-empty-sub">点击下方 + 记录第一条灵感</div>
+          </div>
+        ) : (
+          <div class="mh-memo-list">
+            {items.map((item) => (
+              <article
+                key={item.path}
+                class="mh-memo-card"
+                onClick={() => handleOpen(item.path)}
+              >
+                <div class="mh-memo-preview">{item.preview}</div>
+                <div class="mh-memo-footer">
+                  <span class="mh-memo-time">{item.timeText}</span>
+                  <button
+                    type="button"
+                    class="mh-icon-btn mh-more-btn"
+                    aria-label="更多操作"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuItem(item);
+                    }}
+                  >
+                    <ObsidianIcon name="more-horizontal" size={18} />
+                  </button>
+                </div>
+              </article>
+            ))}
+            {visibleCount < allFiles.length && (
+              <div ref={sentinelRef} class="mh-load-more">
+                加载更多...
               </div>
-            </article>
-          ))}
-          {visibleCount < allFiles.length && (
-            <div ref={sentinelRef} class="mh-load-more">
-              加载更多...
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
 
       <button
         type="button"

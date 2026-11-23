@@ -1148,16 +1148,16 @@ function MemoTab({
     }
     setDeleteTarget(null);
   };
-  return /* @__PURE__ */ u3(
-    "div",
-    {
-      ref: pageRef,
-      class: "mh-tab-page mh-memo-page",
-      onScroll: (e3) => {
-        hubState.memoScrollTop = e3.currentTarget.scrollTop;
-      },
-      children: [
-        !loading && items.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
+  return /* @__PURE__ */ u3("div", { class: "mh-tab-page mh-memo-page", children: [
+    /* @__PURE__ */ u3(
+      "div",
+      {
+        ref: pageRef,
+        class: "mh-memo-scroll",
+        onScroll: (e3) => {
+          hubState.memoScrollTop = e3.currentTarget.scrollTop;
+        },
+        children: !loading && items.length === 0 ? /* @__PURE__ */ u3("div", { class: "mh-empty-state", children: [
           /* @__PURE__ */ u3(ObsidianIcon, { name: "sticky-note", size: 40, className: "mh-empty-icon" }),
           /* @__PURE__ */ u3("div", { class: "mh-empty-text", children: "\u6682\u65E0\u5907\u5FD8\u5F55" }),
           /* @__PURE__ */ u3("div", { class: "mh-empty-sub", children: "\u70B9\u51FB\u4E0B\u65B9 + \u8BB0\u5F55\u7B2C\u4E00\u6761\u7075\u611F" })
@@ -1190,104 +1190,104 @@ function MemoTab({
             item.path
           )),
           visibleCount < allFiles.length && /* @__PURE__ */ u3("div", { ref: sentinelRef, class: "mh-load-more", children: "\u52A0\u8F7D\u66F4\u591A..." })
-        ] }),
-        /* @__PURE__ */ u3(
-          "button",
-          {
-            type: "button",
-            class: "mh-fab",
-            "aria-label": "\u65B0\u5EFA\u5907\u5FD8\u5F55",
-            onClick: handleCreateMemo,
-            children: /* @__PURE__ */ u3(ObsidianIcon, { name: "plus", size: 24 })
-          }
-        ),
-        /* @__PURE__ */ u3(
-          BottomSheet,
-          {
-            open: menuItem !== null,
-            onClose: () => setMenuItem(null),
-            showCancel: true,
-            children: menuItem && /* @__PURE__ */ u3("div", { class: "mh-row-sheet-content", children: [
-              /* @__PURE__ */ u3("div", { class: "mh-quick-grid", children: /* @__PURE__ */ u3(
-                "button",
-                {
-                  type: "button",
-                  class: "mh-quick-tile",
-                  onClick: () => {
-                    const target = menuItem;
-                    setMenuItem(null);
-                    handleOpen(target.path);
-                  },
-                  children: [
-                    /* @__PURE__ */ u3(ObsidianIcon, { name: "pencil", size: 22 }),
-                    /* @__PURE__ */ u3("span", { children: "\u7F16\u8F91" })
-                  ]
-                }
-              ) }),
-              /* @__PURE__ */ u3("div", { class: "mh-action-list", children: [
-                /* @__PURE__ */ u3(
-                  "button",
-                  {
-                    type: "button",
-                    class: "mh-action-item",
-                    onClick: () => {
-                      const target = menuItem;
-                      setMenuItem(null);
-                      setRenameTarget(target);
-                    },
-                    children: [
-                      /* @__PURE__ */ u3("span", { children: "\u91CD\u547D\u540D" }),
-                      /* @__PURE__ */ u3(ObsidianIcon, { name: "edit-3", size: 18 })
-                    ]
-                  }
-                ),
-                /* @__PURE__ */ u3(
-                  "button",
-                  {
-                    type: "button",
-                    class: "mh-action-item is-danger",
-                    onClick: () => {
-                      const target = menuItem;
-                      setMenuItem(null);
-                      setDeleteTarget(target);
-                    },
-                    children: [
-                      /* @__PURE__ */ u3("span", { children: "\u5220\u9664" }),
-                      /* @__PURE__ */ u3(ObsidianIcon, { name: "trash-2", size: 18 })
-                    ]
-                  }
-                )
-              ] })
-            ] })
-          }
-        ),
-        /* @__PURE__ */ u3(
-          PromptModal,
-          {
-            open: renameTarget !== null,
-            title: "\u91CD\u547D\u540D\u5907\u5FD8\u5F55",
-            initialValue: renameTarget?.basename ?? "",
-            placeholder: "\u8F93\u5165\u65B0\u540D\u79F0",
-            onCancel: () => setRenameTarget(null),
-            onConfirm: handleRename
-          }
-        ),
-        /* @__PURE__ */ u3(
-          PromptModal,
-          {
-            open: deleteTarget !== null,
-            title: "\u5220\u9664\u5907\u5FD8\u5F55",
-            message: `\u786E\u5B9A\u5C06\u300C${deleteTarget?.basename ?? ""}\u300D\u79FB\u81F3\u56DE\u6536\u7AD9\u5417\uFF1F`,
-            confirmText: "\u5220\u9664",
-            danger: true,
-            confirmOnly: true,
-            onCancel: () => setDeleteTarget(null),
-            onConfirm: handleDelete
-          }
-        )
-      ]
-    }
-  );
+        ] })
+      }
+    ),
+    /* @__PURE__ */ u3(
+      "button",
+      {
+        type: "button",
+        class: "mh-fab",
+        "aria-label": "\u65B0\u5EFA\u5907\u5FD8\u5F55",
+        onClick: handleCreateMemo,
+        children: /* @__PURE__ */ u3(ObsidianIcon, { name: "plus", size: 24 })
+      }
+    ),
+    /* @__PURE__ */ u3(
+      BottomSheet,
+      {
+        open: menuItem !== null,
+        onClose: () => setMenuItem(null),
+        showCancel: true,
+        children: menuItem && /* @__PURE__ */ u3("div", { class: "mh-row-sheet-content", children: [
+          /* @__PURE__ */ u3("div", { class: "mh-quick-grid", children: /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "mh-quick-tile",
+              onClick: () => {
+                const target = menuItem;
+                setMenuItem(null);
+                handleOpen(target.path);
+              },
+              children: [
+                /* @__PURE__ */ u3(ObsidianIcon, { name: "pencil", size: 22 }),
+                /* @__PURE__ */ u3("span", { children: "\u7F16\u8F91" })
+              ]
+            }
+          ) }),
+          /* @__PURE__ */ u3("div", { class: "mh-action-list", children: [
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-action-item",
+                onClick: () => {
+                  const target = menuItem;
+                  setMenuItem(null);
+                  setRenameTarget(target);
+                },
+                children: [
+                  /* @__PURE__ */ u3("span", { children: "\u91CD\u547D\u540D" }),
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "edit-3", size: 18 })
+                ]
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "mh-action-item is-danger",
+                onClick: () => {
+                  const target = menuItem;
+                  setMenuItem(null);
+                  setDeleteTarget(target);
+                },
+                children: [
+                  /* @__PURE__ */ u3("span", { children: "\u5220\u9664" }),
+                  /* @__PURE__ */ u3(ObsidianIcon, { name: "trash-2", size: 18 })
+                ]
+              }
+            )
+          ] })
+        ] })
+      }
+    ),
+    /* @__PURE__ */ u3(
+      PromptModal,
+      {
+        open: renameTarget !== null,
+        title: "\u91CD\u547D\u540D\u5907\u5FD8\u5F55",
+        initialValue: renameTarget?.basename ?? "",
+        placeholder: "\u8F93\u5165\u65B0\u540D\u79F0",
+        onCancel: () => setRenameTarget(null),
+        onConfirm: handleRename
+      }
+    ),
+    /* @__PURE__ */ u3(
+      PromptModal,
+      {
+        open: deleteTarget !== null,
+        title: "\u5220\u9664\u5907\u5FD8\u5F55",
+        message: `\u786E\u5B9A\u5C06\u300C${deleteTarget?.basename ?? ""}\u300D\u79FB\u81F3\u56DE\u6536\u7AD9\u5417\uFF1F`,
+        confirmText: "\u5220\u9664",
+        danger: true,
+        confirmOnly: true,
+        onCancel: () => setDeleteTarget(null),
+        onConfirm: handleDelete
+      }
+    )
+  ] });
 }
 
 // src/tabs/DiaryTab.tsx
